@@ -104,6 +104,8 @@ function makeRows(count, template) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [info, setInfo] = useState({ name: "", qual: "", desig: "", ay: "2025-2026" });
   const inf = (k) => (v) => setInfo((p) => ({ ...p, [k]: v }));
@@ -195,7 +197,6 @@ export default function Dashboard() {
   const projectTotal = projects.reduce((a, r) => a + n(r.score), 0);
   const qualTotal = quals.reduce((a, r) => a + n(r.score), 0);
   const teachingRaw = totalLecScore + courseFileScore + innovTotal + projectTotal + qualTotal;
-  const navigate = useNavigate();
   const role = localStorage.getItem("role");
   const stuFeedbackScore = feedback.reduce((a, r) => a + n(r.score), 0);
   const deptScore = deptActs.reduce((a, r) => a + n(r.score), 0);
@@ -275,6 +276,26 @@ export default function Dashboard() {
             <div style={S.avatarDept}>{info.desig || "Designation"}</div>
           </div>
         </div>
+        <button
+  onClick={() => setShowLogoutModal(true)}
+  style={{
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    background: "none",
+    border: "1px solid #374151",
+    borderRadius: 8,
+    padding: "9px 11px",
+    cursor: "pointer",
+    fontFamily: "'Georgia', serif",
+  }}
+  onMouseEnter={e => e.currentTarget.style.background = "#1e293b"}
+  onMouseLeave={e => e.currentTarget.style.background = "none"}
+>
+  <span style={{ fontSize: 15 }}>🚪</span>
+  <span style={{ color: "#f87171", fontWeight: 700, fontSize: 12 }}>Logout</span>
+</button>
       </aside>
 
       {/* ── MAIN ── */}
@@ -1344,6 +1365,44 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+      {/* ── Logout Confirmation Modal ── */}
+      {showLogoutModal && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            style={{ background: "#fff", borderRadius: 14, padding: "32px 36px", maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, fontFamily: "'Georgia', serif" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🚪</div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#0f172a", marginBottom: 6 }}>Confirm Logout</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+                You are about to log out of <strong>FacultyAppraise</strong>.<br />Any unsaved changes will be lost.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, width: "100%" }}>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                style={{ flex: 1, padding: "10px 0", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "'Georgia', serif" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutModal(false);
+                  localStorage.clear();
+                  navigate("/", { replace: true });
+                }}
+                style={{ flex: 1, padding: "10px 0", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "'Georgia', serif" }}
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

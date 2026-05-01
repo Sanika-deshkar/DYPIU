@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const DIRECTOR_USER = {
@@ -876,6 +877,7 @@ function SelfAppraisalPanel() {
           <div style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 15 }}>{DIRECTOR_USER.name}</div>
           <div style={{ color: "#64748b", fontSize: 11 }}>{DIRECTOR_USER.designation} · Self-Appraisal AY {DIRECTOR_USER.ay}</div>
         </div>
+        
         <div style={{ display: "flex", gap: 8 }}>
           {[["Part A", partA.toFixed(1), "#38bdf8"], ["Part B", partB.toFixed(1), "#34d399"], ["Total", `${total.toFixed(1)}/575`, g.color]].map(([l, v, c]) => (
             <div key={l} style={{ background: "#1e293b", borderRadius: 8, padding: "8px 12px", textAlign: "center" }}>
@@ -992,11 +994,13 @@ function PersonCard({ person, personType, onReview }) {
 
 // ─── Main Director Dashboard ──────────────────────────────────────────────────
 export default function DirectorDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("hods");
   const [reviewing, setReviewing] = useState(null);   // { person, personType }
   const [hodList, setHodList] = useState(HOD_LIST);
   const [facList, setFacList] = useState(FACULTY_LIST);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const pendingHods = hodList.filter(h => h.status === "Pending Review").length;
   const pendingFacs = facList.filter(f => f.status === "HOD Reviewed").length;
@@ -1063,6 +1067,15 @@ export default function DirectorDashboard() {
             <div style={{ color: "#475569", fontSize: 9 }}>Director · {DIRECTOR_USER.school}</div>
           </div>
         </div>
+        <button
+          onClick={() => setShowLogoutModal(true)}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, background: "none", border: "1px solid #374151", borderRadius: 8, padding: "9px 11px", cursor: "pointer", fontFamily: "Georgia, serif" }}
+          onMouseEnter={e => e.currentTarget.style.background = "#1e293b"}
+          onMouseLeave={e => e.currentTarget.style.background = "none"}
+        >
+          <span style={{ fontSize: 15 }}>🚪</span>
+          <span style={{ color: "#f87171", fontWeight: 700, fontSize: 12 }}>Logout</span>
+        </button>
       </aside>
 
       {/* ── Main Content ── */}
@@ -1132,6 +1145,43 @@ export default function DirectorDashboard() {
           />
         )}
       </main>
+      {showLogoutModal && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            style={{ background: "#fff", borderRadius: 14, padding: "32px 36px", maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, fontFamily: "Georgia, serif" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🚪</div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#0f172a", marginBottom: 6 }}>Confirm Logout</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+                You are about to log out of <strong>FacultyAppraise</strong>.<br />Any unsaved changes will be lost.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, width: "100%" }}>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                style={{ flex: 1, padding: "10px 0", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutModal(false);
+                  localStorage.clear();
+                  navigate("/", { replace: true });
+                }}
+                style={{ flex: 1, padding: "10px 0", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
