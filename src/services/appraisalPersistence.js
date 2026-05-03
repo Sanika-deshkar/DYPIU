@@ -1,8 +1,15 @@
 import { supabase } from "./supabase";
+import { getReviewChain, pendingStatusFor, profileFromLocalStorage } from "../utils/hierarchy";
 
 const n = (value) => parseFloat(value) || 0;
 const inputValue = (value) => value ?? "";
 const hasAnyValue = (row, keys) => keys.some((key) => String(row?.[key] ?? "").trim() !== "");
+const reviewerScores = (row) => ({
+  hod: inputValue(row.hod_score),
+  director: inputValue(row.director_score),
+  dean: inputValue(row.dean_score),
+  vc: inputValue(row.vc_score),
+});
 
 const dbText = (value) => {
   const text = String(value ?? "").trim();
@@ -156,6 +163,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -167,12 +175,17 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
   if (innovativeRows.length) {
     setters.setInnovDetails?.(inputValue(innovativeRows[0].details));
     setters.setInnovScore?.(inputValue(innovativeRows[0].score));
+    setters.setInnovHod?.(inputValue(innovativeRows[0].hod_score));
+    setters.setInnovDirector?.(inputValue(innovativeRows[0].director_score));
+    setters.setInnovDean?.(inputValue(innovativeRows[0].dean_score));
+    setters.setInnovVc?.(inputValue(innovativeRows[0].vc_score));
   }
 
   if (projectRows.length) {
@@ -181,6 +194,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -190,6 +204,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -201,6 +216,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -211,6 +227,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -221,6 +238,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -231,6 +249,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -241,6 +260,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -250,6 +270,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -262,6 +283,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -276,6 +298,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -288,6 +311,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -299,6 +323,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -312,6 +337,7 @@ export const loadSavedAppraisal = async ({
       status: inputValue(row.project_status),
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -325,6 +351,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -337,6 +364,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -349,6 +377,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -361,6 +390,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -372,6 +402,7 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
 
@@ -383,8 +414,86 @@ export const loadSavedAppraisal = async ({
       score: inputValue(row.score),
       hod: inputValue(row.hod_score),
       director: inputValue(row.director_score),
+      ...reviewerScores(row),
     })));
   }
+};
+
+export const fetchSavedAppraisal = async ({ facultyEmail, academicYear }) => {
+  const appraisal = {
+    info: { ay: academicYear },
+    lectures: [],
+    courseFile: [],
+    innovDetails: "",
+    innovScore: "",
+    innovHod: "",
+    innovDirector: "",
+    innovDean: "",
+    innovVc: "",
+    projects: [],
+    quals: [],
+    feedback: [],
+    deptActs: [],
+    uniActs: [],
+    society: [],
+    industry: [],
+    acr: [],
+    journals: [],
+    books: [],
+    ict: [],
+    research: [],
+    projects2: [],
+    patents: [],
+    awards: [],
+    confs: [],
+    proposals: [],
+    fdps: [],
+    training: [],
+    docs: {},
+  };
+
+  await Promise.all([
+    loadSavedAppraisal({
+      facultyEmail,
+      academicYear,
+      setters: {
+        setLectures: (value) => { appraisal.lectures = value; },
+        setCourseFile: (value) => { appraisal.courseFile = value; },
+        setInnovDetails: (value) => { appraisal.innovDetails = value; },
+        setInnovScore: (value) => { appraisal.innovScore = value; },
+        setInnovHod: (value) => { appraisal.innovHod = value; },
+        setInnovDirector: (value) => { appraisal.innovDirector = value; },
+        setInnovDean: (value) => { appraisal.innovDean = value; },
+        setInnovVc: (value) => { appraisal.innovVc = value; },
+        setProjects: (value) => { appraisal.projects = value; },
+        setQuals: (value) => { appraisal.quals = value; },
+        setFeedback: (value) => { appraisal.feedback = value; },
+        setDeptActs: (value) => { appraisal.deptActs = value; },
+        setUniActs: (value) => { appraisal.uniActs = value; },
+        setSociety: (value) => { appraisal.society = value; },
+        setIndustry: (value) => { appraisal.industry = value; },
+        setAcr: (value) => { appraisal.acr = value; },
+        setJournals: (value) => { appraisal.journals = value; },
+        setBooks: (value) => { appraisal.books = value; },
+        setIct: (value) => { appraisal.ict = value; },
+        setResearch: (value) => { appraisal.research = value; },
+        setProjects2: (value) => { appraisal.projects2 = value; },
+        setPatents: (value) => { appraisal.patents = value; },
+        setAwards: (value) => { appraisal.awards = value; },
+        setConfs: (value) => { appraisal.confs = value; },
+        setProposals: (value) => { appraisal.proposals = value; },
+        setFdps: (value) => { appraisal.fdps = value; },
+        setTraining: (value) => { appraisal.training = value; },
+      },
+    }),
+    loadAppraisalDocuments({
+      facultyEmail,
+      academicYear,
+      setDocs: (value) => { appraisal.docs = value; },
+    }),
+  ]);
+
+  return appraisal;
 };
 
 export const saveAppraisal = async ({
@@ -393,6 +502,7 @@ export const saveAppraisal = async ({
   totals,
   form,
   docs = {},
+  submitterProfile,
 }) => {
   if (!facultyEmail) throw new Error("Please login again before submitting. Your email was not found in this session.");
   if (!academicYear) throw new Error("Academic year is required before submitting.");
@@ -423,6 +533,10 @@ export const saveAppraisal = async ({
     training = [],
   } = form;
 
+  const reviewChain = getReviewChain(submitterProfile || profileFromLocalStorage());
+  const nextReviewer = reviewChain[0];
+  const workflowStatus = nextReviewer ? pendingStatusFor(nextReviewer) : "Submitted";
+
   const { error: declError } = await supabase
     .from("declarations")
     .upsert({
@@ -431,7 +545,7 @@ export const saveAppraisal = async ({
       part_a_total: totals.partATotal,
       part_b_total: totals.partBTotal,
       grand_total: totals.grandTotal,
-      status: "Pending Review",
+      status: workflowStatus,
       submitted_at: new Date().toISOString(),
     }, { onConflict: "faculty_email,academic_year" });
   requireSupabase(declError, "Could not save declaration");
@@ -466,6 +580,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "teaching process");
 
   await replaceRows("course_files", courseFile
@@ -478,6 +593,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "course file");
 
   await replaceRows("innovative_teaching",
@@ -487,6 +603,9 @@ export const saveAppraisal = async ({
         academic_year: academicYear,
         details: dbText(innovDetails),
         score: n(innovScore),
+        hod_score: dbNumber(form.innovHod),
+        director_score: dbNumber(form.innovDirector),
+        dean_score: dbNumber(form.innovDean),
       }]
       : [],
     "innovative teaching");
@@ -499,6 +618,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "projects");
 
   await replaceRows("qualification_enhancement", quals
@@ -509,6 +629,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "qualification enhancement");
 
   await replaceRows("student_feedback", feedback
@@ -521,6 +642,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "student feedback");
 
   await replaceRows("department_activities", deptActs
@@ -532,6 +654,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "department activities");
 
   await replaceRows("university_activities", uniActs
@@ -543,6 +666,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "university activities");
 
   await replaceRows("social_contributions", society
@@ -554,6 +678,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "social contribution");
 
   await replaceRows("industry_connect", industry
@@ -565,6 +690,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "industry connect");
 
   await replaceRows("acr_scores", acr
@@ -575,6 +701,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "ACR");
 
   await replaceRows("journal_publications", journals
@@ -588,6 +715,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "journal publications");
 
   await replaceRows("book_publications", books
@@ -603,6 +731,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "book publications");
 
   await replaceRows("ict_pedagogy", ict
@@ -616,6 +745,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "ICT pedagogy");
 
   await replaceRows("research_guidance", research
@@ -628,6 +758,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "research guidance");
 
   await replaceRows("research_projects", projects2
@@ -642,6 +773,7 @@ export const saveAppraisal = async ({
       project_status: dbText(row.status),
       score: n(row.score),
       hod_score: dbNumber(row.hod),
+      dean_score: dbNumber(row.dean),
     })), "research projects");
 
   await replaceRows("patents", patents
@@ -656,6 +788,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "patents");
 
   await replaceRows("awards", awards
@@ -669,6 +802,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "awards");
 
   await replaceRows("conferences", confs
@@ -682,6 +816,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "conferences");
 
   await replaceRows("research_proposals", proposals
@@ -695,6 +830,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "research proposals");
 
   await replaceRows("self_development", fdps
@@ -707,6 +843,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "self development");
 
   await replaceRows("industrial_training", training
@@ -719,6 +856,7 @@ export const saveAppraisal = async ({
       score: n(row.score),
       hod_score: dbNumber(row.hod),
       director_score: dbNumber(row.director),
+      dean_score: dbNumber(row.dean),
     })), "industrial training");
 
   const documentRows = docsToRows(docs, facultyEmail, academicYear);

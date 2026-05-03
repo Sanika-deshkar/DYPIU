@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { HodInput } from "../components/Inputs";
 import { DEAN_USER } from "../data/mockData";
-import { getStaffForDean } from "../services/api";
 import { loadAppraisalDocuments, loadSavedAppraisal, saveAppraisal } from "../services/appraisalPersistence";
 import { uploadToCloudinary } from "../services/cloudinary";
+import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
+import { profileFromLocalStorage } from "../utils/hierarchy";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -56,7 +57,7 @@ function RO({ val, center }) {
 }
 function DeanInput({ val, onChange }) {
   return (
-    <input type="number" min="0" step="0.5" value={val}
+    <input type="number" min="0" step="0.5" value={val ?? ""}
       onChange={e => onChange(e.target.value)}
       style={{ width: 58, textAlign: "center", border: "1.5px solid #7c3aed", borderRadius: 5, padding: "3px 5px", fontSize: 11, fontFamily: "Georgia, serif", outline: "none", background: "#faf5ff" }}
     />
@@ -64,7 +65,7 @@ function DeanInput({ val, onChange }) {
 }
 function SelfInput({ val, onChange }) {
   return (
-    <input type="number" min="0" step="0.5" value={val}
+    <input type="number" min="0" step="0.5" value={val ?? ""}
       onChange={e => onChange(e.target.value)}
       style={{ width: 58, textAlign: "center", border: "1.5px solid #10b981", borderRadius: 5, padding: "3px 5px", fontSize: 11, fontFamily: "Georgia, serif", outline: "none", background: "#f0fff8" }}
     />
@@ -74,7 +75,7 @@ function SelfInput({ val, onChange }) {
 function TI({ val, onChange, center, placeholder }) {
   return (
     <input
-      value={val} onChange={(e) => onChange(e.target.value)}
+      value={val ?? ""} onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder || ""}
       style={center
         ? { width: "100%", maxWidth: "100%", height: 30, boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: 4, padding: "5px 6px", fontSize: 11, lineHeight: 1.25, fontFamily: "Georgia, serif", outline: "none", textAlign: "center" }
@@ -182,10 +183,14 @@ function SC({ title, subtitle, accent = "#7c3aed", children }) {
 const T = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const TH = { border: "1px solid #cbd5e1", padding: "7px 8px", background: "#0f172a", color: "#cbd5e1", fontWeight: 700, textAlign: "center", fontSize: 10 };
 const TH_HOD = { ...TH, background: "#312e81", color: "#c7d2fe" };
+const TH_DIR = { ...TH, background: "#065f46", color: "#6ee7b7" };
+const TH_DEAN = { ...TH, background: "#4c1d95", color: "#ddd6fe" };
 const TD = { border: "1px solid #e2e8f0", padding: "4px 6px", verticalAlign: "middle" };
 const TDC = { ...TD, textAlign: "center" };
 const TDS = { ...TD, textAlign: "center", background: "#f8fafc", minWidth: 52 };
 const TDS_HOD = { ...TDS, background: "#f0f4ff" };
+const TDS_DIR = { ...TDS, background: "#f0fdf4", minWidth: 62 };
+const TDS_DEAN = { ...TDS, background: "#faf5ff", minWidth: 62 };
 const TDV = { ...TD, background: "#fafbff", minWidth: 110 };
 
 // ─── Faculty Form in HOD Review Mode ─────────────────────────────────────────
@@ -872,15 +877,451 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
   );
 }
 
+const DEAN_REVIEW_PART_A_KEYS = ["lectures", "courseFile", "projects", "quals", "feedback", "deptActs", "uniActs", "society", "industry", "acr"];
+const DEAN_REVIEW_PART_B_KEYS = ["journals", "books", "ict", "research", "projects2", "patents", "awards", "confs", "proposals", "fdps", "training"];
+const DEAN_REVIEW_ARRAY_KEYS = [...DEAN_REVIEW_PART_A_KEYS, ...DEAN_REVIEW_PART_B_KEYS];
+
+const deanScorePayload = (approval, deanData) => {
+  const payload = {};
+
+  DEAN_REVIEW_ARRAY_KEYS.forEach((key) => {
+    const rows = Array.isArray(approval[key]) ? approval[key] : [];
+    payload[key] = rows.map((row, index) => ({
+      ...row,
+      dean: deanData[key]?.[index]?.dean ?? row.dean ?? "",
+    }));
+  });
+
+  payload.innovativeTeaching = {
+    dean: deanData.innovativeTeaching?.dean ?? approval.innovDean ?? "",
+  };
+
+  return payload;
+};
+
+const sumDeanRows = (payload, keys) =>
+  keys.reduce((total, key) => total + (payload[key] || []).reduce((sum, row) => sum + n(row.dean), 0), 0);
+
+const deanScoreTotals = (payload) => {
+  const partA = sumDeanRows(payload, DEAN_REVIEW_PART_A_KEYS) + n(payload.innovativeTeaching?.dean);
+  const partB = sumDeanRows(payload, DEAN_REVIEW_PART_B_KEYS);
+  return { partA, partB, total: partA + partB };
+};
+
+function DeanScoreCell({ sectionKey, index, row, deanData, setDeanData }) {
+  const value = deanData[sectionKey]?.[index]?.dean ?? row.dean ?? "";
+
+  const update = (nextValue) => {
+    setDeanData((prev) => {
+      const baseRows = Array.isArray(prev[sectionKey]) ? prev[sectionKey] : [];
+      const updatedRows = [...baseRows];
+      updatedRows[index] = { ...(updatedRows[index] || row), dean: nextValue };
+      return { ...prev, [sectionKey]: updatedRows };
+    });
+  };
+
+  return <DeanInput val={value} onChange={update} />;
+}
+
+function DeanInnovativeScoreCell({ approval, deanData, setDeanData }) {
+  const value = deanData.innovativeTeaching?.dean ?? approval.innovDean ?? "";
+  return (
+    <DeanInput
+      val={value}
+      onChange={(nextValue) => setDeanData((prev) => ({
+        ...prev,
+        innovativeTeaching: { ...(prev.innovativeTeaching || {}), dean: nextValue },
+      }))}
+    />
+  );
+}
+
+function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
+  const docs = approval.docs || {};
+  const rows = (key) => Array.isArray(approval[key]) ? approval[key] : [];
+  const cell = (value, center = false) => <RO val={value} center={center} />;
+
+  const scoreHeaders = (
+    <>
+      <th style={TH}>Faculty Score</th>
+      <th style={TH_HOD}>HOD Score</th>
+      <th style={TH_DIR}>Director Score</th>
+      <th style={TH_DEAN}>Dean Score</th>
+    </>
+  );
+
+  const ScoreCells = ({ sectionKey, row, index }) => (
+    <>
+      <td style={TDS}>{cell(row.score, true)}</td>
+      <td style={TDS_HOD}>{cell(row.hod, true)}</td>
+      <td style={TDS_DIR}>{cell(row.director, true)}</td>
+      <td style={TDS_DEAN}><DeanScoreCell sectionKey={sectionKey} index={index} row={row} deanData={deanData} setDeanData={setDeanData} /></td>
+    </>
+  );
+
+  const ReviewTable = ({ title, accent = "#4c1d95", sectionKey, columns, docPrefix, rows: sectionRows }) => {
+    const dataRows = sectionRows || rows(sectionKey);
+    const hasDocs = Boolean(docPrefix);
+    const totalColumns = 1 + columns.length + (hasDocs ? 1 : 0) + 4;
+
+    return (
+      <SC title={title} accent={accent}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead>
+              <tr>
+                <th style={TH}>SN</th>
+                {columns.map((column) => <th key={column.label} style={TH}>{column.label}</th>)}
+                {hasDocs && <th style={TH}>View Docs</th>}
+                {scoreHeaders}
+              </tr>
+            </thead>
+            <tbody>
+              {dataRows.length ? dataRows.map((row, index) => (
+                <tr key={`${sectionKey}-${index}`} style={index % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{index + 1}</td>
+                  {columns.map((column) => (
+                    <td key={column.label} style={column.center ? TDC : TD}>
+                      {cell(column.render(row), column.center)}
+                    </td>
+                  ))}
+                  {hasDocs && <td style={TDV}><ViewDocsCell docKey={`${docPrefix}-${index}`} docs={docs} /></td>}
+                  <ScoreCells sectionKey={sectionKey} row={row} index={index} />
+                </tr>
+              )) : (
+                <tr>
+                  <td style={{ ...TDC, color: "#94a3b8", fontStyle: "italic" }} colSpan={totalColumns}>
+                    No submitted rows for this table.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SC>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div style={{ background: "linear-gradient(90deg,#4c1d95,#7c3aed)", color: "#ede9fe", borderRadius: 8, padding: "10px 16px", marginBottom: 14, fontSize: 12 }}>
+        <strong>Dean Review Mode</strong> - Existing self, HOD, and Director scores are read-only. Enter Dean scores in the Dean column, then submit remarks.
+      </div>
+
+      <SC title="Faculty Information" accent="#4c1d95">
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <tbody>
+            {[["Name", approval.info?.name || approval.name], ["Qualification", approval.info?.qual], ["Designation", approval.info?.desig || approval.designation], ["Academic Year", approval.academicYear || approval.info?.ay]].map(([label, value]) => (
+              <tr key={label}>
+                <td style={{ padding: "6px 10px", background: "#f8fafc", fontWeight: 600, border: "1px solid #e2e8f0", width: "35%" }}>{label}</td>
+                <td style={{ padding: "5px 10px", border: "1px solid #e2e8f0", color: "#334155" }}>{value || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </SC>
+
+      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#dbeafe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>
+        Part A - Teaching & Academic Activities
+      </div>
+
+      <ReviewTable
+        title="A1. Lectures / Tutorials / Practicals"
+        accent="#6366f1"
+        sectionKey="lectures"
+        docPrefix="lec"
+        columns={[
+          { label: "Semester", render: (r) => r.sem },
+          { label: "Course Code / Name", render: (r) => r.code },
+          { label: "Planned", render: (r) => r.planned, center: true },
+          { label: "Conducted", render: (r) => r.conducted, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="A2. Course File"
+        accent="#6366f1"
+        sectionKey="courseFile"
+        docPrefix="courseFile"
+        columns={[
+          { label: "Course / Paper", render: (r) => r.course },
+          { label: "Title", render: (r) => r.title },
+          { label: "Details", render: (r) => r.details },
+        ]}
+      />
+
+      <SC title="A3. Innovative Teaching-Learning" accent="#8b5cf6">
+        <table style={T}>
+          <thead>
+            <tr>
+              <th style={TH}>Details</th>
+              <th style={TH}>View Docs</th>
+              <th style={TH}>Self Score</th>
+              <th style={TH_HOD}>HOD</th>
+              <th style={TH_DIR}>Director</th>
+              <th style={TH_DEAN}>Dean</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={TD}><RO val={approval.innovDetails || "Innovative / participatory teaching methods"} /></td>
+              <td style={TDV}><ViewDocsCell docKey="innov" docs={docs} /></td>
+              <td style={TDS}><RO val={approval.innovScore} center /></td>
+              <td style={TDS_HOD}><RO val={approval.innovHod} center /></td>
+              <td style={TDS_DIR}><RO val={approval.innovDirector} center /></td>
+              <td style={TDS_DEAN}><DeanInnovativeScoreCell approval={approval} deanData={deanData} setDeanData={setDeanData} /></td>
+            </tr>
+          </tbody>
+        </table>
+      </SC>
+
+      <ReviewTable
+        title="A4. Projects Guided"
+        accent="#8b5cf6"
+        sectionKey="projects"
+        docPrefix="proj"
+        columns={[{ label: "Project Type / Description", render: (r) => r.label }]}
+      />
+
+      <ReviewTable
+        title="A5. Qualification Enhancement"
+        accent="#8b5cf6"
+        sectionKey="quals"
+        docPrefix="qual"
+        columns={[{ label: "Description", render: (r) => r.label }]}
+      />
+
+      <ReviewTable
+        title="A6. Student Feedback"
+        accent="#0ea5e9"
+        sectionKey="feedback"
+        columns={[
+          { label: "Course", render: (r) => r.code },
+          { label: "Feedback 1", render: (r) => r.fb1, center: true },
+          { label: "Feedback 2", render: (r) => r.fb2, center: true },
+          { label: "Average", render: (r) => r.fb1 && r.fb2 ? ((n(r.fb1) + n(r.fb2)) / 2).toFixed(2) : "", center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="A7. Department Activities"
+        accent="#f59e0b"
+        sectionKey="deptActs"
+        docPrefix="dept"
+        columns={[
+          { label: "Activity", render: (r) => r.activity },
+          { label: "Nature", render: (r) => r.nature },
+        ]}
+      />
+
+      <ReviewTable
+        title="A8. University Activities"
+        accent="#f59e0b"
+        sectionKey="uniActs"
+        docPrefix="uni"
+        columns={[
+          { label: "Activity", render: (r) => r.activity },
+          { label: "Nature", render: (r) => r.nature },
+        ]}
+      />
+
+      <ReviewTable
+        title="A9. Contribution to Society"
+        accent="#10b981"
+        sectionKey="society"
+        docPrefix="soc"
+        columns={[
+          { label: "Activity", render: (r) => r.label },
+          { label: "Details", render: (r) => r.details },
+        ]}
+      />
+
+      <ReviewTable
+        title="A10. Industry Connect"
+        accent="#10b981"
+        sectionKey="industry"
+        docPrefix="ind"
+        columns={[
+          { label: "Industry Name", render: (r) => r.name },
+          { label: "Details", render: (r) => r.details },
+        ]}
+      />
+
+      <ReviewTable
+        title="A11. Annual Confidential Report (ACR)"
+        accent="#ef4444"
+        sectionKey="acr"
+        columns={[{ label: "Parameter", render: (r) => r.label }]}
+      />
+
+      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#ede9fe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>
+        Part B - Research & Academic Contributions
+      </div>
+
+      <ReviewTable
+        title="B1. Research Papers / Journal Publications"
+        accent="#7c3aed"
+        sectionKey="journals"
+        docPrefix="jour"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Journal", render: (r) => r.journal },
+          { label: "ISSN", render: (r) => r.issn, center: true },
+          { label: "Indexing", render: (r) => r.index, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="B2. Books / Book Chapters"
+        accent="#7c3aed"
+        sectionKey="books"
+        docPrefix="book"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Book", render: (r) => r.book },
+          { label: "ISSN / ISBN", render: (r) => r.issn, center: true },
+          { label: "Publisher", render: (r) => r.pub },
+          { label: "Co-author", render: (r) => r.coauth },
+          { label: "First Author", render: (r) => r.first, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="B3. ICT / E-Content / Pedagogy"
+        accent="#0ea5e9"
+        sectionKey="ict"
+        docPrefix="ict"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Description", render: (r) => r.desc },
+          { label: "Type", render: (r) => r.type },
+          { label: "Quadrants", render: (r) => r.quad, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="B4. Research Guidance"
+        accent="#059669"
+        sectionKey="research"
+        docPrefix="res"
+        columns={[
+          { label: "Degree", render: (r) => r.degree, center: true },
+          { label: "Student Name", render: (r) => r.name },
+          { label: "Thesis Title / Status", render: (r) => r.thesis },
+        ]}
+      />
+
+      <ReviewTable
+        title="B5. Research Projects"
+        accent="#059669"
+        sectionKey="projects2"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Agency", render: (r) => r.agency },
+          { label: "Sanction Date", render: (r) => r.date, center: true },
+          { label: "Amount", render: (r) => r.amount, center: true },
+          { label: "Role", render: (r) => r.role },
+          { label: "Status", render: (r) => r.status },
+        ]}
+      />
+
+      <ReviewTable
+        title="B6. Patents / IPR"
+        accent="#f97316"
+        sectionKey="patents"
+        docPrefix="pat"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Type", render: (r) => r.type, center: true },
+          { label: "Date", render: (r) => r.date, center: true },
+          { label: "Status", render: (r) => r.status, center: true },
+          { label: "File No.", render: (r) => r.fileNo, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="B7. Awards / Fellowships"
+        accent="#f97316"
+        sectionKey="awards"
+        docPrefix="awd"
+        columns={[
+          { label: "Award Title", render: (r) => r.title },
+          { label: "Date", render: (r) => r.date, center: true },
+          { label: "Agency", render: (r) => r.agency },
+          { label: "Level", render: (r) => r.level },
+        ]}
+      />
+
+      <ReviewTable
+        title="B8. Conferences / Papers Presented"
+        accent="#6366f1"
+        sectionKey="confs"
+        docPrefix="conf"
+        columns={[
+          { label: "Title / Session", render: (r) => r.title },
+          { label: "Type", render: (r) => r.type },
+          { label: "Organizer", render: (r) => r.org },
+          { label: "Level", render: (r) => r.level },
+        ]}
+      />
+
+      <ReviewTable
+        title="B9. Research Proposals / Products"
+        accent="#0ea5e9"
+        sectionKey="proposals"
+        docPrefix="prop"
+        columns={[
+          { label: "Title", render: (r) => r.title },
+          { label: "Duration", render: (r) => r.duration, center: true },
+          { label: "Funding Agency", render: (r) => r.agency },
+          { label: "Amount", render: (r) => r.amount, center: true },
+        ]}
+      />
+
+      <ReviewTable
+        title="B10. Self Development - FDP / Workshops"
+        accent="#10b981"
+        sectionKey="fdps"
+        docPrefix="fdp"
+        columns={[
+          { label: "Program", render: (r) => r.program },
+          { label: "Duration", render: (r) => r.duration, center: true },
+          { label: "Organizer", render: (r) => r.org },
+        ]}
+      />
+
+      <ReviewTable
+        title="B11. Industrial Training"
+        accent="#10b981"
+        sectionKey="training"
+        docPrefix="train"
+        columns={[
+          { label: "Company", render: (r) => r.company },
+          { label: "Duration", render: (r) => r.duration, center: true },
+          { label: "Nature", render: (r) => r.nature },
+        ]}
+      />
+    </div>
+  );
+}
+
 function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
   const [remarks, setRemarks] = useState(approval?.deanRemarks || approval?.directorRemarks || approval?.hodRemarks || "");
+  const [deanData, setDeanData] = useState({});
+  const [tab, setTab] = useState("form");
+  const sectionScores = deanScorePayload(approval, deanData);
+  const deanScores = deanScoreTotals(sectionScores);
+  const previousTotal = n(approval?.directorTotal || approval?.hodTotal || approval?.declaration?.grand_total);
   const titleMap = {
     hodApprovals: "HOD Approval Review",
     directorApprovals: "Director Approval Review",
     facultyApprovals: "Faculty Approval Review",
   };
-  const scoreKey = approvalType === "hodApprovals" ? "directorTotal" : approvalType === "directorApprovals" ? "deanTotal" : "hodTotal";
-  const scoreLabel = approvalType === "hodApprovals" ? "Director Total" : approvalType === "directorApprovals" ? "Dean Total" : "HOD Total";
+  const previousScoreLabel = approval?.directorTotal
+    ? "Director Total"
+    : approval?.hodTotal
+      ? "HOD Total"
+      : "Submitted Total";
 
   return (
     <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 18px 45px rgba(15,23,42,0.18)", minHeight: "100%" }}>
@@ -892,11 +1333,12 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 20 }}>
         {[
           { label: "Employee ID", value: approval.employeeId },
           { label: "Submitted", value: approval.submittedOn },
-          { label: scoreLabel, value: approval[scoreKey] ?? 0 },
+          { label: previousScoreLabel, value: previousTotal.toFixed(1) },
+          { label: "Dean Total", value: deanScores.total.toFixed(1) },
         ].map((item) => (
           <div key={item.label} style={{ background: "#f8fafc", borderRadius: 12, padding: "18px 16px" }}>
             <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.7 }}>{item.label}</div>
@@ -905,16 +1347,40 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
         ))}
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Dean Remarks</div>
-        <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={7}
-          style={{ width: "100%", borderRadius: 12, border: "1px solid #cbd5e1", padding: "14px", fontFamily: "Georgia, serif", fontSize: 13, color: "#1f2937", resize: "vertical" }}
-        />
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {[["form", "Dean Score Columns"], ["remarks", "Remarks & Submit"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ padding: "7px 18px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700, background: tab === id ? "#4c1d95" : "#e2e8f0", color: tab === id ? "#ede9fe" : "#475569" }}>
+            {label}
+          </button>
+        ))}
       </div>
+
+      {tab === "form" && <DeanReviewScoreForm approval={approval} deanData={deanData} setDeanData={setDeanData} />}
+
+      {tab === "remarks" && (
+        <>
+          <div style={{ background: "#faf5ff", border: "1px solid #ddd6fe", borderRadius: 12, padding: "14px 16px", marginBottom: 18 }}>
+            <div style={{ fontSize: 11, color: "#6d28d9", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.7 }}>Dean Score Summary</div>
+            <div style={{ display: "flex", gap: 18, marginTop: 8, color: "#4c1d95", fontWeight: 900 }}>
+              <span>Part A: {deanScores.partA.toFixed(1)} / 200</span>
+              <span>Part B: {deanScores.partB.toFixed(1)} / 375</span>
+              <span>Total: {deanScores.total.toFixed(1)} / 575</span>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Dean Remarks</div>
+            <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={7}
+              style={{ width: "100%", borderRadius: 12, border: "1px solid #cbd5e1", padding: "14px", fontFamily: "Georgia, serif", fontSize: 13, color: "#1f2937", resize: "vertical" }}
+            />
+          </div>
+        </>
+      )}
 
       <div style={{ display: "flex", gap: 12 }}>
         <button onClick={onBack} style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
-        <button onClick={() => onSubmit(approval.id, remarks)} style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "none", background: "#0f172a", color: "#f8fafc", fontWeight: 700, cursor: "pointer" }}>Submit Review</button>
+        <button onClick={() => onSubmit(approval.id, deanScores, remarks, sectionScores)} style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "none", background: "#0f172a", color: "#f8fafc", fontWeight: 700, cursor: "pointer" }}>Submit Review</button>
       </div>
     </div>
   );
@@ -933,10 +1399,24 @@ export default function DeanDashboard() {
   const [directorList, setDirectorList] = useState([]);
 
   useEffect(() => {
-    const { faculty, hods, directors } = getStaffForDean(deanSchool);
-    setFacultyList(faculty);
-    setHodList(hods);
-    setDirectorList(directors);
+    const loadReviewQueue = async () => {
+      try {
+        const items = await fetchReviewQueueForRole({
+          reviewerRole: "dean",
+          reviewerProfile: { ...profileFromLocalStorage(), school: deanSchool },
+        });
+        setFacultyList(items.filter((item) => item.appraisalRole === "faculty"));
+        setHodList(items.filter((item) => item.appraisalRole === "hod"));
+        setDirectorList(items.filter((item) => item.appraisalRole === "director"));
+      } catch (err) {
+        console.error("Could not load Dean review queue:", err);
+        setFacultyList([]);
+        setHodList([]);
+        setDirectorList([]);
+      }
+    };
+
+    loadReviewQueue();
   }, [deanSchool]);
 
   const [filterStatus, setFilterStatus] = useState("All");
@@ -1171,12 +1651,12 @@ export default function DeanDashboard() {
   };
   const g = gradeFunc();
 
-  const facultyPendingCount = facultyList.filter(f => f.status === "Director Reviewed").length;
-  const facultyReviewedCount = facultyList.filter(f => f.status === "Dean Reviewed").length;
-  const hodPendingCount = hodList.filter(h => h.status === "Director Reviewed").length;
-  const hodReviewedCount = hodList.filter(h => h.status === "Dean Reviewed").length;
+  const facultyPendingCount = facultyList.filter(f => f.status === "Pending Review").length;
+  const facultyReviewedCount = facultyList.filter(f => f.status === "Reviewed").length;
+  const hodPendingCount = hodList.filter(h => h.status === "Pending Review").length;
+  const hodReviewedCount = hodList.filter(h => h.status === "Reviewed").length;
   const directorPendingCount = directorList.filter(d => d.status === "Pending Review").length;
-  const directorReviewedCount = directorList.filter(d => d.status === "Dean Reviewed").length;
+  const directorReviewedCount = directorList.filter(d => d.status === "Reviewed").length;
 
   const activeApprovalList = activeMainTab === "hodApprovals"
     ? hodList
@@ -1186,17 +1666,15 @@ export default function DeanDashboard() {
         ? facultyList
         : [];
 
-  const pendingCount = activeMainTab === "directorApprovals" 
-    ? directorList.filter(d => d.status === "Pending Review").length 
-    : activeApprovalList.filter(f => f.status === "Director Reviewed").length;
+  const pendingCount = activeApprovalList.filter(f => f.status === "Pending Review").length;
 
-  const reviewedCount = activeApprovalList.filter(f => f.status === "Dean Reviewed").length;
+  const reviewedCount = activeApprovalList.filter(f => f.status === "Reviewed").length;
 
   const filtered = filterStatus === "All"
     ? activeApprovalList
     : (filterStatus === "Pending Review"
-      ? (activeMainTab === "directorApprovals" ? directorList.filter(d => d.status === "Pending Review") : activeApprovalList.filter(f => f.status === "Director Reviewed"))
-      : activeApprovalList.filter(f => f.status === "Dean Reviewed"));
+      ? activeApprovalList.filter(f => f.status === "Pending Review")
+      : activeApprovalList.filter(f => f.status === "Reviewed"));
 
   const navItems = [
     { id: "myAppraisal", icon: "👤", label: "My Appraisal", sub: "View your self-appraisal form" },
@@ -1522,20 +2000,46 @@ export default function DeanDashboard() {
     }
   };
 
-  const handleSubmitReview = (id, remarks) => {
-    const newStatus = "Dean Reviewed";
-    const remarksKey = "deanRemarks";
+  const handleSubmitReview = async (id, scores, remarks, sectionScores) => {
+    const sourceList = activeMainTab === "facultyApprovals"
+      ? facultyList
+      : activeMainTab === "hodApprovals"
+        ? hodList
+        : directorList;
+    const item = sourceList.find((entry) => entry.id === id);
+    if (!item) return;
 
-    if (activeMainTab === "facultyApprovals") {
-      setFacultyList(prev => prev.map(item => item.id === id ? { ...item, status: newStatus, [remarksKey]: remarks } : item));
+    try {
+      await submitWorkflowReview({
+        subjectEmail: item.email,
+        academicYear: item.academicYear || item.info?.ay,
+        reviewerRole: "dean",
+        partAScore: scores.partA,
+        partBScore: scores.partB,
+        totalScore: scores.total,
+        remarks,
+        sectionScores,
+      });
+
+      const markReviewed = (entry) => entry.id === id
+        ? { ...entry, ...sectionScores, innovDean: sectionScores?.innovativeTeaching?.dean ?? entry.innovDean, status: "Reviewed", workflowStatus: "Dean Reviewed", deanPartA: scores.partA, deanPartB: scores.partB, deanTotal: scores.total, deanRemarks: remarks }
+        : entry;
+
+      if (activeMainTab === "facultyApprovals") {
+        setFacultyList(prev => prev.map(markReviewed));
+      }
+      if (activeMainTab === "hodApprovals") {
+        setHodList(prev => prev.map(markReviewed));
+      }
+      if (activeMainTab === "directorApprovals") {
+        setDirectorList(prev => prev.map(markReviewed));
+      }
+      setReviewingApproval(null);
+      alert("Dean review submitted and forwarded to VC.");
+    } catch (err) {
+      console.error("Could not submit Dean review:", err);
+      alert(`Unable to submit Dean review.\n\n${err.message}`);
     }
-    if (activeMainTab === "hodApprovals") {
-      setHodList(prev => prev.map(item => item.id === id ? { ...item, status: newStatus, [remarksKey]: remarks } : item));
-    }
-    if (activeMainTab === "directorApprovals") {
-      setDirectorList(prev => prev.map(item => item.id === id ? { ...item, status: newStatus, [remarksKey]: remarks } : item));
-    }
-    setReviewingApproval(null);
   };
 
   return (

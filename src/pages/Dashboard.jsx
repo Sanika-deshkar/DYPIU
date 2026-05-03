@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { APP_INFO } from "../constants/formConfig";
 import { supabase } from "../services/supabase";
 import { uploadToCloudinary } from "../services/cloudinary";
+import { getReviewChain, pendingStatusFor, profileFromLocalStorage } from "../utils/hierarchy";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -1076,6 +1077,7 @@ export default function HODDashboard() {
   const setTrain = (i, k, v) => setTraining((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
 
   const [docs, setDocs] = useState({});
+  const [appraisalLocked, setAppraisalLocked] = useState(false);
 
   useEffect(() => {
     const loadDocuments = async () => {
@@ -1142,8 +1144,24 @@ export default function HODDashboard() {
         return data || [];
       };
 
+      const fetchDeclaration = async () => {
+        const { data, error } = await supabase
+          .from("declarations")
+          .select("status")
+          .eq("faculty_email", userEmail)
+          .eq("academic_year", info.ay)
+          .maybeSingle();
+
+        if (error) {
+          throw new Error(`declarations: ${error.message}`);
+        }
+
+        return data;
+      };
+
       try {
         const [
+          declarationRow,
           teachingRows,
           courseRows,
           innovativeRows,
@@ -1167,6 +1185,7 @@ export default function HODDashboard() {
           selfDevelopmentRows,
           trainingRows,
         ] = await Promise.all([
+          fetchDeclaration(),
           fetchRows("teaching_process"),
           fetchRows("course_files"),
           fetchRows("innovative_teaching", false),
@@ -1190,6 +1209,8 @@ export default function HODDashboard() {
           fetchRows("self_development"),
           fetchRows("industrial_training"),
         ]);
+
+        setAppraisalLocked(Boolean(declarationRow));
 
         if (teachingRows.length) {
           setLectures(teachingRows.map((row) => ({
@@ -1479,6 +1500,11 @@ export default function HODDashboard() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmitAppraisal = async () => {
+    if (appraisalLocked) {
+      alert("This appraisal has already been submitted and is locked for review.");
+      return;
+    }
+
     // 1. Basic Validation
     if (!info.name || !info.ay) {
       alert("Please fill in basic faculty information (Name, Academic Year).");
@@ -1498,6 +1524,10 @@ export default function HODDashboard() {
 
     setSubmitting(true);
     try {
+      const reviewChain = getReviewChain(profileFromLocalStorage());
+      const nextReviewer = reviewChain[0];
+      const workflowStatus = nextReviewer ? pendingStatusFor(nextReviewer) : "Submitted";
+
       // 2. Prepare payload for declaration/main submission
       const declarationData = {
         faculty_email: userEmail,
@@ -1505,7 +1535,7 @@ export default function HODDashboard() {
         part_a_total: partATotal,
         part_b_total: partBTotal,
         grand_total: grandTotal,
-        status: "Pending Review",
+        status: workflowStatus,
         submitted_at: new Date().toISOString()
       };
 
@@ -1906,6 +1936,7 @@ export default function HODDashboard() {
       }
 
       alert("Appraisal submitted successfully!");
+      setAppraisalLocked(true);
     } catch (err) {
       console.error("Submission error:", err);
       alert(`Unable to submit appraisal.\n\n${err.message}`);
@@ -2248,9 +2279,14 @@ export default function HODDashboard() {
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>My Appraisal Form</h2>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b" }}>{info.name || "Faculty"}.{info.ay}</p>
             </div>
+            {appraisalLocked && (
+              <div style={{ background: "#ecfdf5", border: "1px solid #bbf7d0", color: "#166534", borderRadius: 9, padding: "10px 14px", fontSize: 12, fontWeight: 700 }}>
+                Submitted and locked for review. Your saved data is visible here, but editing is disabled while authorities review it.
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, pointerEvents: appraisalLocked && hodAppraisalTab !== "summary" ? "none" : "auto", opacity: appraisalLocked && hodAppraisalTab !== "summary" ? 0.78 : 1 }}>
 
             {/* Part A Tab */}
             {hodAppraisalTab === "partA" && (
@@ -3011,10 +3047,10 @@ export default function HODDashboard() {
                   </button>
                   <button 
                     onClick={handleSubmitAppraisal}
-                    disabled={submitting}
-                    style={{ padding: "10px 28px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", opacity: submitting ? 0.7 : 1 }}
+                    disabled={submitting || appraisalLocked}
+                    style={{ padding: "10px 28px", background: appraisalLocked ? "#64748b" : "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: appraisalLocked ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", opacity: submitting ? 0.7 : 1 }}
                   >
-                    {submitting ? "Submitting..." : "✔ Submit Appraisal"}
+                    {appraisalLocked ? "Submitted & Locked" : submitting ? "Submitting..." : "✔ Submit Appraisal"}
                   </button>
                 </div>
               </SC>

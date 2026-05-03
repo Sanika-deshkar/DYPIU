@@ -5,7 +5,7 @@ export function HodInput({ val, onChange }) {
       type="number"
       min="0"
       step="0.5"
-      value={val}
+      value={val ?? ""}
       onChange={(e) => onChange(e.target.value)}
       style={{
         width: 58,

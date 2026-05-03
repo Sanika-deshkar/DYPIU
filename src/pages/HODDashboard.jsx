@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { APP_INFO } from "../constants/formConfig";
 import { HOD_USER, FACULTY_LIST } from "../data/mockData";
-import { getFacultyForHOD } from "../services/api";
 import { loadAppraisalDocuments, loadSavedAppraisal, saveAppraisal } from "../services/appraisalPersistence";
 import { uploadToCloudinary } from "../services/cloudinary";
+import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
+import { profileFromLocalStorage } from "../utils/hierarchy";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -58,7 +59,7 @@ function RO({ val, center }) {
 function HodInput({ val, onChange }) {
   return (
     <input
-      type="number" min="0" step="0.5" value={val}
+      type="number" min="0" step="0.5" value={val ?? ""}
       onChange={e => onChange(e.target.value)}
       style={{ width: 58, height: 30, boxSizing: "border-box", textAlign: "center", border: "1.5px solid #6366f1", borderRadius: 5, padding: "5px 6px", fontSize: 11, fontFamily: "Georgia, serif", outline: "none", background: "#f0f4ff" }}
     />
@@ -69,7 +70,7 @@ function HodInput({ val, onChange }) {
 function TI({ val, onChange, center, placeholder }) {
   return (
     <input
-      value={val} onChange={(e) => onChange(e.target.value)}
+      value={val ?? ""} onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder || ""}
       style={center
         ? { width: "100%", maxWidth: "100%", height: 30, boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: 4, padding: "5px 6px", fontSize: 11, lineHeight: 1.25, fontFamily: "Georgia, serif", outline: "none", textAlign: "center" }
@@ -200,13 +201,33 @@ const TDS = { ...TD, textAlign: "center", background: "#f8fafc", minWidth: 52 };
 const TDS_HOD = { ...TDS, background: "#f0f4ff" };
 const TDV = { ...TD, background: "#fafbff", minWidth: 110 };
 
+const REVIEW_ARRAY_KEYS = ["lectures", "courseFile", "projects", "quals", "feedback", "deptActs", "uniActs", "society", "industry", "acr", "journals", "books", "ict", "research", "projects2", "patents", "awards", "confs", "proposals", "fdps", "training"];
+const buildHodSectionScores = (faculty, hodData) => {
+  const payload = {};
+  REVIEW_ARRAY_KEYS.forEach((key) => {
+    const rows = Array.isArray(faculty[key]) ? faculty[key] : [];
+    payload[key] = rows.map((row, index) => ({
+      ...row,
+      hod: hodData[key]?.[index]?.hod ?? row.hod ?? "",
+    }));
+  });
+  payload.innovativeTeaching = {
+    hod: hodData.innovHod ?? faculty.innovHod ?? "",
+  };
+  return payload;
+};
+
 // ─── Faculty Form in HOD Review Mode ─────────────────────────────────────────
 function FacultyReviewForm({ faculty, hodData, setHodData }) {
   const set = (section, idx, field, val) => {
     setHodData(prev => {
       const updated = { ...prev };
       if (!updated[section]) updated[section] = JSON.parse(JSON.stringify(faculty[section] || []));
-      if (idx === null) { updated[section] = { ...updated[section], [field]: val }; }
+      if (idx === null) {
+        updated[section] = Array.isArray(updated[section])
+          ? (updated[section].length ? updated[section].map((r, i) => i === 0 ? { ...r, [field]: val } : r) : [{ [field]: val }])
+          : { ...updated[section], [field]: val };
+      }
       else { updated[section] = updated[section].map((r, i) => i === idx ? { ...r, [field]: val } : r); }
       return updated;
     });
@@ -216,13 +237,20 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
   const get = (section, idx, field) => {
     if (hodData[section]) {
       const s = hodData[section];
-      return idx === null ? (s[field] ?? faculty[section]?.[field] ?? "") : (s[idx]?.[field] ?? faculty[section]?.[idx]?.[field] ?? "");
+      return idx === null
+        ? (Array.isArray(s) ? (s[0]?.[field] ?? "") : (s[field] ?? ""))
+        : (s[idx]?.[field] ?? faculty[section]?.[idx]?.[field] ?? "");
     }
-    return idx === null ? (faculty[section]?.[field] ?? "") : (faculty[section]?.[idx]?.[field] ?? "");
+    if (idx === null) {
+      const source = faculty[section];
+      return Array.isArray(source) ? (source[0]?.[field] ?? "") : (source?.[field] ?? "");
+    }
+    return faculty[section]?.[idx]?.[field] ?? "";
   };
   const getS = (key) => hodData[key] ?? faculty[key] ?? "";
 
   const { info, lectures, courseFile, projects, quals, feedback, deptActs, uniActs, society, industry, acr, journals, books, ict, research, patents, awards, confs, proposals, fdps, training, docs } = faculty;
+  const courseFileRow = Array.isArray(courseFile) ? (courseFile[0] || {}) : (courseFile || {});
 
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
 
@@ -290,11 +318,11 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           </tr></thead>
           <tbody>
             <tr>
-              <td style={TD}><RO val={courseFile?.course} /></td>
-              <td style={TD}><RO val={courseFile?.title} /></td>
-              <td style={TDC}><RO val={courseFile?.details} center /></td>
+              <td style={TD}><RO val={courseFileRow.course} /></td>
+              <td style={TD}><RO val={courseFileRow.title} /></td>
+              <td style={TDC}><RO val={courseFileRow.details} center /></td>
               <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-              <td style={TDS}><RO val={courseFile?.score} center /></td>
+              <td style={TDS}><RO val={courseFileRow.score} center /></td>
               <td style={TDS_HOD}><HodInput val={get("courseFile", null, "hod")} onChange={v => set("courseFile", null, "hod", v)} /></td>
             </tr>
           </tbody>
@@ -595,6 +623,33 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         </table>
       </SC>
 
+      <SC title="B4b. Research Projects (Max 45)" accent="#059669">
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Agency</th>
+              <th style={TH}>Sanction Date</th><th style={TH}>Amount</th><th style={TH}>Role</th><th style={TH}>Status</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(faculty.projects2).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TD}><RO val={r.agency} /></td>
+                  <td style={TDC}><RO val={r.date} center /></td>
+                  <td style={TDC}><RO val={r.amount} center /></td>
+                  <td style={TD}><RO val={r.role} /></td>
+                  <td style={TD}><RO val={r.status} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><HodInput val={get("projects2", i, "hod")} onChange={v => set("projects2", i, "hod", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SC>
+
       {/* B5: Patents */}
       <SC title="B5a. Patents / IPR (Max 40)" accent="#f97316">
         <div style={{ overflowX: "auto" }}>
@@ -756,9 +811,10 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
     const get = (section, idx, field) => {
       if (hodData[section]) {
         const s = hodData[section];
-        return idx === null ? n(s[field]) : n(s[idx]?.[field]);
+        return idx === null ? n(Array.isArray(s) ? s[0]?.[field] : s[field]) : n(s[idx]?.[field]);
       }
-      return idx === null ? n(faculty[section]?.[field]) : n(faculty[section]?.[idx]?.[field]);
+      const source = faculty[section];
+      return idx === null ? n(Array.isArray(source) ? source[0]?.[field] : source?.[field]) : n(source?.[idx]?.[field]);
     };
     const getS = (key) => n(hodData[key] ?? faculty[key]);
 
@@ -779,13 +835,14 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
     const bk = (faculty.books || []).reduce((a, _, i) => a + get("books", i, "hod"), 0);
     const ictT = (faculty.ict || []).reduce((a, _, i) => a + get("ict", i, "hod"), 0);
     const res = (faculty.research || []).reduce((a, _, i) => a + get("research", i, "hod"), 0);
+    const resProjects = (faculty.projects2 || []).reduce((a, _, i) => a + get("projects2", i, "hod"), 0);
     const pat = (faculty.patents || []).reduce((a, _, i) => a + get("patents", i, "hod"), 0);
     const awd = (faculty.awards || []).reduce((a, _, i) => a + get("awards", i, "hod"), 0);
     const conf = (faculty.confs || []).reduce((a, _, i) => a + get("confs", i, "hod"), 0);
     const prop = (faculty.proposals || []).reduce((a, _, i) => a + get("proposals", i, "hod"), 0);
     const fdp = (faculty.fdps || []).reduce((a, _, i) => a + get("fdps", i, "hod"), 0);
     const train = (faculty.training || []).reduce((a, _, i) => a + get("training", i, "hod"), 0);
-    const partB = jour + bk + ictT + res + pat + awd + conf + prop + fdp + train;
+    const partB = jour + bk + ictT + res + resProjects + pat + awd + conf + prop + fdp + train;
 
     return { partA, partB, total: partA + partB };
   };
@@ -873,7 +930,7 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <button onClick={onBack} style={{ padding: "9px 22px", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "Georgia, serif" }}>Cancel</button>
-            <button onClick={() => onSubmit(faculty.id, total, remarks)}
+            <button onClick={() => onSubmit(faculty.id, { partA, partB, total }, remarks, buildHodSectionScores(faculty, hodData))}
               style={{ padding: "10px 28px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>
               ✔ Submit HOD Review
             </button>
@@ -896,7 +953,20 @@ export default function HODDashboard() {
   const hodDept = localStorage.getItem("department");
 
   useEffect(() => {
-    setFacultyList(getFacultyForHOD(hodDept, hodSchool));
+    const loadReviewQueue = async () => {
+      try {
+        const items = await fetchReviewQueueForRole({
+          reviewerRole: "hod",
+          reviewerProfile: { ...profileFromLocalStorage(), school: hodSchool, department: hodDept },
+        });
+        setFacultyList(items);
+      } catch (err) {
+        console.error("Could not load HOD review queue:", err);
+        setFacultyList([]);
+      }
+    };
+
+    loadReviewQueue();
   }, [hodDept, hodSchool]);
 
   const [filterStatus, setFilterStatus] = useState("All");
@@ -1456,9 +1526,29 @@ export default function HODDashboard() {
   win.print();
 };
 
-  const handleSubmitReview = (id, hodTotal, remarks) => {
-    setFacultyList(prev => prev.map(f => f.id === id ? { ...f, status: "HOD Reviewed", hodTotal, hodRemarks: remarks } : f));
-    setReviewingFaculty(null);
+  const handleSubmitReview = async (id, scores, remarks, sectionScores) => {
+    const item = facultyList.find((faculty) => faculty.id === id);
+    if (!item) return;
+
+    try {
+      await submitWorkflowReview({
+        subjectEmail: item.email,
+        academicYear: item.academicYear || item.info?.ay,
+        reviewerRole: "hod",
+        partAScore: scores.partA,
+        partBScore: scores.partB,
+        totalScore: scores.total,
+        remarks,
+        sectionScores,
+      });
+
+      setFacultyList(prev => prev.map(f => f.id === id ? { ...f, ...sectionScores, innovHod: sectionScores?.innovativeTeaching?.hod ?? f.innovHod, status: "Reviewed", workflowStatus: "HOD Reviewed", hodPartA: scores.partA, hodPartB: scores.partB, hodTotal: scores.total, hodRemarks: remarks } : f));
+      setReviewingFaculty(null);
+      alert("HOD review submitted and forwarded to Director.");
+    } catch (err) {
+      console.error("Could not submit HOD review:", err);
+      alert(`Unable to submit HOD review.\n\n${err.message}`);
+    }
   };
 
   const filtered = filterStatus === "All" ? facultyList : facultyList.filter(f => f.status === filterStatus);
