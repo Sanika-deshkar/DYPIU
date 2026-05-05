@@ -2146,13 +2146,18 @@ export default function DeanDashboard() {
 
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#1e293b" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button
+          type="button"
+          onClick={() => navigate("/edit-profile")}
+          title="Edit profile"
+          style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: 0, width: "100%", cursor: "pointer", fontFamily: "Georgia, serif", textAlign: "left" }}
+        >
           <Avatar initials={(localStorage.getItem("name") || "U").split(" ").map(n => n[0]).join("").toUpperCase()} color="#6366f1" size={34} />
           <div style={{ flex: 1 }}>
             <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{(localStorage.getItem("name") || "User").split(" ").slice(0, 2).join(" ")}</div>
             <div style={{ color: "#475569", fontSize: 9 }}>Dean · {localStorage.getItem("department")?.split(" ")[0] || ""}</div>
           </div>
-        </div>
+        </button>
         <button
           onClick={() => setShowLogoutModal(true)}
           style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, background: "none", border: "1px solid #374151", borderRadius: 8, padding: "9px 11px", cursor: "pointer", fontFamily: "Georgia, serif" }}

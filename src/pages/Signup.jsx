@@ -13,13 +13,21 @@ import {
 import { supabase } from "../services/supabase";
 import { buildProfilePayload, storeUserSession } from "../auth/session";
 
+const BASE_ROLE_OPTIONS = [
+  { value: "faculty", label: "Faculty" },
+  { value: "hod", label: "HOD" },
+  { value: "dean", label: "Dean" },
+  { value: "director", label: "Director" },
+  { value: "vc", label: "Vice Chancellor" },
+];
+
 export default function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    role: "faculty",
+    role: "",
     employeeId: "",
     designation: "Assistant Professor",
     department: "",
@@ -32,6 +40,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const selectedSchool = canonicalSchoolValue(formData.school);
   const needsDepartment = isSoemrSchool(selectedSchool);
+  const roleOptions = BASE_ROLE_OPTIONS.filter((role) => needsDepartment || role.value !== "hod");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -40,7 +49,8 @@ export default function Signup() {
         return {
           ...prev,
           school: value,
-          department: isSoemrSchool(value) ? prev.department : "",
+          role: "",
+          department: "",
         };
       }
 
@@ -53,8 +63,8 @@ export default function Signup() {
     const school = canonicalSchoolValue(formData.school);
     const department = canonicalDepartmentValue(formData.department);
 
-    if (!formData.name || !formData.email || !formData.password || !formData.employeeId || !school) {
-      setError("Please fill in all required fields (Name, Email, Password, Employee ID, School).");
+    if (!formData.name || !formData.email || !formData.password || !formData.employeeId || !school || !formData.role) {
+      setError("Please fill in all required fields (School, Role, Name, Email, Password, Employee ID).");
       return;
     }
 
@@ -189,6 +199,38 @@ export default function Signup() {
             {error && <div style={s.error}>{error}</div>}
 
             <form onSubmit={handleSignup} style={s.formGrid}>
+              <div style={{ ...s.inputGroup, gridColumn: "1 / -1" }}>
+                <label style={s.label}>School *</label>
+                <select className="dyp-input" name="school" value={formData.school} onChange={handleChange} required>
+                  <option value="">Select school</option>
+                  {SCHOOL_OPTIONS.map((school) => (
+                    <option key={school.value} value={school.value}>{school.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={s.inputGroup}>
+                <label style={s.label}>Role *</label>
+                <select className="dyp-input" name="role" value={formData.role} onChange={handleChange} required>
+                  <option value="">Select role</option>
+                  {roleOptions.map((role) => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {needsDepartment && (
+                <div style={s.inputGroup}>
+                  <label style={s.label}>SoEMR Department *</label>
+                  <select className="dyp-input" name="department" value={formData.department} onChange={handleChange} required>
+                    <option value="">Select department</option>
+                    {SOEMR_DEPARTMENTS.map((department) => (
+                      <option key={department} value={department}>{department}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div style={s.inputGroup}>
                 <label style={s.label}>Full Name *</label>
                 <input className="dyp-input" type="text" name="name" value={formData.name} onChange={handleChange} required />
@@ -205,39 +247,6 @@ export default function Signup() {
                 <label style={s.label}>Employee ID *</label>
                 <input className="dyp-input" type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required />
               </div>
-
-              <div style={s.inputGroup}>
-                <label style={s.label}>Role</label>
-                <select className="dyp-input" name="role" value={formData.role} onChange={handleChange}>
-                  <option value="faculty">Faculty</option>
-                  <option value="hod">HOD</option>
-                  <option value="dean">Dean</option>
-                  <option value="director">Director</option>
-                  <option value="vc">Vice Chancellor</option>
-                </select>
-              </div>
-
-              <div style={s.inputGroup}>
-                <label style={s.label}>School *</label>
-                <select className="dyp-input" name="school" value={formData.school} onChange={handleChange} required>
-                  <option value="">Select school</option>
-                  {SCHOOL_OPTIONS.map((school) => (
-                    <option key={school.value} value={school.value}>{school.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {needsDepartment && (
-                <div style={s.inputGroup}>
-                  <label style={s.label}>SoEMR Department *</label>
-                  <select className="dyp-input" name="department" value={formData.department} onChange={handleChange} required>
-                    <option value="">Select department</option>
-                    {SOEMR_DEPARTMENTS.map((department) => (
-                      <option key={department} value={department}>{department}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div style={s.inputGroup}>
                 <label style={s.label}>Designation</label>

@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import FacultyProfile from "./pages/FacultyProfile";
+import EditProfile from "./pages/EditProfile";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import RoleDashboard from "./pages/RoleDashboard";
 import { useNavigate } from "react-router-dom";
@@ -110,6 +111,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProfileLoader />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/edit-profile"
+          element={
+            <ProtectedRoute>
+              <EditProfile />
             </ProtectedRoute>
           }
         />
