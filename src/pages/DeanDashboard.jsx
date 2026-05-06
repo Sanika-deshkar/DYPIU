@@ -2956,6 +2956,12 @@ export default function DeanDashboard() {
 
                 <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
                   <button
+                    onClick={generateReport}
+                    style={{ padding: "10px 28px", background: "#4c1d95", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}
+                  >
+                    Generate Report
+                  </button>
+                  <button
                     onClick={handleSubmitAppraisal}
                     disabled={submitting || appraisalLocked || !accuracyConfirmed}
                     style={{ padding: "10px 28px", background: appraisalLocked || !accuracyConfirmed ? "#64748b" : "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: appraisalLocked || !accuracyConfirmed ? "not-allowed" : submitting ? "wait" : "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", opacity: submitting ? 0.7 : 1 }}

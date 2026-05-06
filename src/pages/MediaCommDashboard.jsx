@@ -496,14 +496,19 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
   const totals = calculateMediaTotals(reviewerForm, reviewerRole);
   const reviewCompleted = readOnly || /Reviewed/.test(person?.status || "") || n(person?.[`${reviewerRole}Total`]) > 0;
 
-  const generateReport = () => {
+  const generateReviewReport = () => {
+    if (!reviewCompleted) return;
     const win = window.open("", "_blank");
     if (!win) {
       alert("Please allow popups to generate the report.");
       return;
     }
     const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
-    win.document.write(`<!doctype html><html><head><title>SoMCS Appraisal Report</title><style>body{font-family:Georgia,serif;padding:28px;color:#0f172a}table{border-collapse:collapse;width:100%;margin-top:18px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left}th{background:#0f172a;color:white}.total{font-weight:800;color:#0f766e}</style></head><body><h2>School of Media & Communication Studies Appraisal Report</h2><p><strong>Name:</strong> ${safe(person?.name)}</p><p><strong>School:</strong> ${safe(person?.school)}</p><table><tr><th>Section</th><th>VC Score</th><th>Max</th></tr><tr><td>Part A</td><td>${totals.partA.toFixed(1)}</td><td>${PART_A_MAX}</td></tr><tr><td>Part B</td><td>${totals.partB.toFixed(1)}</td><td>${PART_B_MAX}</td></tr><tr><td class="total">Grand Total</td><td class="total">${totals.total.toFixed(1)}</td><td class="total">${GRAND_MAX}</td></tr></table><h3>VC Remarks</h3><p>${safe(remarks || person?.vcRemarks || "No remarks recorded.")}</p></body></html>`);
+    const reportPartA = n(person?.[`${reviewerRole}PartA`] ?? totals.partA);
+    const reportPartB = n(person?.[`${reviewerRole}PartB`] ?? totals.partB);
+    const reportTotal = n(person?.[`${reviewerRole}Total`] ?? totals.total);
+    const reportRemarks = person?.[`${reviewerRole}Remarks`] || remarks || "No VC remarks recorded.";
+    win.document.write(`<!doctype html><html><head><title>SoMCS VC Appraisal Report</title><style>body{font-family:Georgia,serif;padding:28px;color:#0f172a}table{border-collapse:collapse;width:100%;margin-top:18px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left}th{background:#0f172a;color:white}.total{font-weight:800;color:#0f766e}.remarks{white-space:pre-wrap;border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#f8fafc}</style></head><body><h2>SoMCS VC Appraisal Report</h2><p><strong>Name:</strong> ${safe(person?.name || person?.email)}</p><p><strong>Role:</strong> ${safe(person?.designation || titleCase(person?.appraisalRole))}</p><p><strong>School:</strong> ${safe(person?.school)}</p><table><tr><th>Section</th><th>VC Score</th><th>Max</th></tr><tr><td>Part A</td><td>${reportPartA.toFixed(1)}</td><td>${PART_A_MAX}</td></tr><tr><td>Part B</td><td>${reportPartB.toFixed(1)}</td><td>${PART_B_MAX}</td></tr><tr><td class="total">Grand Total</td><td class="total">${reportTotal.toFixed(1)}</td><td class="total">${GRAND_MAX}</td></tr></table><h3>VC Remarks</h3><div class="remarks">${safe(reportRemarks)}</div></body></html>`);
     win.document.close();
     win.print();
   };
@@ -545,8 +550,12 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
           </label>
           {!readOnly && <AccuracyCheckbox checked={confirmed} onChange={setConfirmed} />}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            {showReport && <button onClick={generateReport} disabled={!reviewCompleted} style={smallButton(reviewCompleted ? "#4c1d95" : "#94a3b8")}>Generate Report</button>}
             <button onClick={onBack} style={smallButton("#64748b")}>Close</button>
+            {showReport && (
+              <button onClick={generateReviewReport} disabled={!reviewCompleted} style={smallButton(reviewCompleted ? "#4c1d95" : "#94a3b8")}>
+                Generate Report
+              </button>
+            )}
             {!readOnly && (
               <button
                 onClick={() => onSubmit(person.id, { partA: totals.partA, partB: totals.partB, total: totals.total }, remarks, buildMediaSectionScores(form, reviewData, reviewerRole), confirmed)}
@@ -690,6 +699,18 @@ export default function MediaCommDashboard({ fixedRole }) {
     }
   };
 
+  const generateSelfReport = () => {
+    const win = window.open("", "_blank");
+    if (!win) {
+      alert("Please allow popups to generate the report.");
+      return;
+    }
+    const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+    win.document.write(`<!doctype html><html><head><title>SoMCS Appraisal Report</title><style>body{font-family:Georgia,serif;padding:28px;color:#0f172a}table{border-collapse:collapse;width:100%;margin-top:18px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left}th{background:#0f172a;color:white}.total{font-weight:800;color:#0f766e}</style></head><body><h2>School of Media & Communication Studies Appraisal Report</h2><p><strong>Name:</strong> ${safe(form.info?.name || localStorage.getItem("name"))}</p><p><strong>Role:</strong> ${safe(roleLabel(role))}</p><p><strong>Academic Year:</strong> ${safe(academicYear)}</p><table><tr><th>Section</th><th>Self Score</th><th>Max</th></tr><tr><td>Part A</td><td>${totals.partA.toFixed(1)}</td><td>${PART_A_MAX}</td></tr><tr><td>Part B</td><td>${totals.partB.toFixed(1)}</td><td>${PART_B_MAX}</td></tr><tr><td class="total">Grand Total</td><td class="total">${totals.total.toFixed(1)}</td><td class="total">${GRAND_MAX}</td></tr></table><p><strong>Status:</strong> ${safe(declaration?.status || "Submitted")}</p></body></html>`);
+    win.document.close();
+    win.print();
+  };
+
   const pendingCount = queue.filter((item) => item.status === "Pending Review").length;
 
   return (
@@ -769,7 +790,10 @@ export default function MediaCommDashboard({ fixedRole }) {
                 <SummaryBox totals={totals} roleScoreLabel="Faculty/self appraisal score from the Media & Communication form." />
                 <div style={{ display: "grid", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
                   {locked ? <StatusBadge status={declaration?.status || "Submitted"} /> : <AccuracyCheckbox checked={confirmed} onChange={setConfirmed} />}
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                    <button onClick={generateSelfReport} style={smallButton("#4c1d95")}>
+                      Generate Report
+                    </button>
                     <button onClick={handleSubmitAppraisal} disabled={submitting || locked || !confirmed} style={smallButton(locked || !confirmed ? "#94a3b8" : "#059669")}>
                       {locked ? "Appraisal Locked" : submitting ? "Submitting..." : "Submit Appraisal"}
                     </button>

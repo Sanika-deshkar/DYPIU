@@ -6,6 +6,7 @@ import { DIRECTOR_USER, HOD_LIST, FACULTY_LIST, DIRECTOR_SELF_DATA } from "../da
 import { loadAppraisalDocuments, loadSavedAppraisal, saveAppraisal } from "../services/appraisalPersistence";
 import { uploadToCloudinary } from "../services/cloudinary";
 import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
+import { supabase } from "../services/supabase";
 import { reviewedStatusFor, profileFromLocalStorage } from "../utils/hierarchy";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1237,6 +1238,7 @@ export default function DirectorDashboard() {
   const setTrain = (i, k, v) => setTraining((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
 
   const [docs, setDocs] = useState({});
+  const [appraisalLocked, setAppraisalLocked] = useState(false);
 
   useEffect(() => {
     const userEmail = localStorage.getItem("username");
@@ -1244,7 +1246,23 @@ export default function DirectorDashboard() {
 
     const loadOwnAppraisal = async () => {
       try {
-        await Promise.all([
+        const fetchDeclaration = async () => {
+          const { data, error } = await supabase
+            .from("declarations")
+            .select("status")
+            .eq("faculty_email", userEmail)
+            .eq("academic_year", info.ay)
+            .maybeSingle();
+
+          if (error) {
+            throw new Error(`declarations: ${error.message}`);
+          }
+
+          return data;
+        };
+
+        const [declarationRow] = await Promise.all([
+          fetchDeclaration(),
           loadSavedAppraisal({
             facultyEmail: userEmail,
             academicYear: info.ay,
@@ -1280,6 +1298,7 @@ export default function DirectorDashboard() {
             setDocs,
           }),
         ]);
+        setAppraisalLocked(Boolean(declarationRow));
       } catch (err) {
         console.error("Could not load saved director appraisal:", err);
       }
@@ -1341,6 +1360,10 @@ export default function DirectorDashboard() {
   const [accuracyConfirmed, setAccuracyConfirmed] = useState(false);
 
   const handleSubmitAppraisal = async () => {
+    if (appraisalLocked) {
+      alert("This appraisal has already been submitted and locked.");
+      return;
+    }
     if (!accuracyConfirmed) {
       alert("Please verify and confirm the accuracy declaration before submitting.");
       return;
@@ -1396,6 +1419,7 @@ export default function DirectorDashboard() {
       });
 
       alert("Appraisal submitted successfully!");
+      setAppraisalLocked(true);
     } catch (err) {
       console.error("Submission error:", err);
       alert(`Unable to submit appraisal.\n\n${err.message}`);
@@ -2538,24 +2562,30 @@ export default function DirectorDashboard() {
                   <div style={{ fontSize: 20, fontWeight: 800, color: g.color, marginTop: 4 }}>{g.label}</div>
                 </div>
 
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 14px", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, marginBottom: 14, color: "#334155", fontSize: 12, lineHeight: 1.5, cursor: "pointer" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 14px", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, marginBottom: 14, color: "#334155", fontSize: 12, lineHeight: 1.5, cursor: appraisalLocked ? "not-allowed" : "pointer" }}>
                   <input
                     type="checkbox"
                     checked={accuracyConfirmed}
                     onChange={(e) => setAccuracyConfirmed(e.target.checked)}
-                    disabled={submitting}
+                    disabled={submitting || appraisalLocked}
                     style={{ marginTop: 3 }}
                   />
                   <span>I have verified all the details and confirm that the information provided is correct. I am responsible for the accuracy of this data.</span>
                 </label>
 
                 <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+                  <button
+                    onClick={generateReport}
+                    style={{ padding: "10px 28px", background: "#4c1d95", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}
+                  >
+                    Generate Report
+                  </button>
                   <button 
                     onClick={handleSubmitAppraisal}
-                    disabled={submitting || !accuracyConfirmed}
-                    style={{ padding: "10px 28px", background: accuracyConfirmed ? "#059669" : "#64748b", color: "#fff", border: "none", borderRadius: 7, cursor: accuracyConfirmed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", opacity: submitting ? 0.7 : 1 }}
+                    disabled={submitting || appraisalLocked || !accuracyConfirmed}
+                    style={{ padding: "10px 28px", background: appraisalLocked || !accuracyConfirmed ? "#64748b" : "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: appraisalLocked || !accuracyConfirmed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", opacity: submitting ? 0.7 : 1 }}
                   >
-                    {submitting ? "Submitting..." : "✔ Submit Appraisal"}
+                    {appraisalLocked ? "Submitted & Locked" : submitting ? "Submitting..." : "✔ Submit Appraisal"}
                   </button>
                 </div>
               </SC>

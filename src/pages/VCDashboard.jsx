@@ -873,7 +873,7 @@ const SCHOOL_META = {
   SoEMR:  { color: "#f59e0b", icon: "EM" },
   SoC:    { color: "#14b8a6", icon: "CM" },
   SoMCS:  { color: "#8b5cf6", icon: "MC" },
-  CioD:   { color: "#ec4899", icon: "DS" },
+  SoD:    { color: "#ec4899", icon: "DS" },
   SoAA:   { color: "#f97316", icon: "AA" },
 };
 
