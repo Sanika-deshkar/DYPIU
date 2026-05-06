@@ -72,6 +72,7 @@ const SNAPSHOT_REVIEW_ARRAY_KEYS = [
   "projects2",
   "internalProjects",
   "externalProjects",
+  "ipr",
   "patents",
   "awards",
   "confs",

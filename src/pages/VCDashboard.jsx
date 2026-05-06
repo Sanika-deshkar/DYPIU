@@ -4,8 +4,11 @@ import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/revie
 import { SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { VC_USER } from "../data/mockData";
 import { DEAN_TRACKS, UNIVERSITY_SCHOOLS } from "../constants/universityHierarchy";
+import { FORM_TYPES, formTypeForSchool } from "../constants/formRouting";
 import { getSchoolKey, reviewedStatusFor, profileFromLocalStorage } from "../utils/hierarchy";
+import { openFullFormReport } from "../utils/fullFormReport";
 import { MediaCommAuthorityReviewPanel } from "./MediaCommDashboard";
+import { DesignArtsAuthorityReviewPanel } from "./DesignArtsDashboard";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -126,6 +129,31 @@ const TDS_VC   = { ...TDS, background: "#fdf4ff", minWidth: 70 };
 const TDV = { ...TD, background: "#fafbff", minWidth: 110 };
 
 const VC_REVIEW_ARRAY_KEYS = ["lectures", "courseFile", "projects", "quals", "feedback", "deptActs", "uniActs", "society", "industry", "acr", "journals", "books", "ict", "research", "projects2", "patents", "awards", "confs", "proposals", "fdps", "training"];
+const VC_REPORT_PART_A_SECTIONS = [
+  { key: "lectures", title: "A(i). Lectures / Tutorials / Practicals", max: 50, doc: "lec", fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
+  { key: "courseFile", title: "A(ii). Course File", max: 20, doc: "cf", fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
+  { key: "projects", title: "A(iv). Project Guidance", max: 10, doc: "proj", fields: [["label", "Project Category"]] },
+  { key: "quals", title: "A(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category"]] },
+  { key: "feedback", title: "Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
+  { key: "deptActs", title: "Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "uniActs", title: "University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "society", title: "Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity"], ["details", "Details"]] },
+  { key: "industry", title: "Industry Connect", max: 5, doc: "ind", fields: [["name", "Industry"], ["details", "Details"]] },
+  { key: "acr", title: "Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter"]] },
+];
+const VC_REPORT_PART_B_SECTIONS = [
+  { key: "journals", title: "B1. Research Papers / Journal Publications", max: 120, doc: "jour", fields: [["title", "Title"], ["journal", "Journal"], ["issn", "ISSN"], ["index", "Indexing"]] },
+  { key: "books", title: "B2. Books / Book Chapters", max: 50, doc: "book", fields: [["title", "Title"], ["book", "Book / Publisher"], ["isbn", "ISBN"], ["first", "First Author"]] },
+  { key: "ict", title: "B3. ICT / E-Content", max: 20, doc: "ict", fields: [["title", "Title"], ["desc", "Description"], ["type", "Type"], ["quad", "Quadrants"]] },
+  { key: "research", title: "B4(a). Research Guidance", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
+  { key: "projects2", title: "B4(b). Research Projects", max: 45, doc: "project2", fields: [["title", "Title"], ["agency", "Agency"], ["date", "Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "patents", title: "B5(a). Patents / IPR", max: 40, doc: "pat", fields: [["title", "Title"], ["type", "Type"], ["date", "Date"], ["status", "Status"], ["fileNo", "File No."]] },
+  { key: "awards", title: "B5(b). Awards / Fellowships", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
+  { key: "confs", title: "B6. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
+  { key: "proposals", title: "B7. Research Proposals", max: 20, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
+  { key: "fdps", title: "B8(a). FDP / Self Development", max: 10, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
+  { key: "training", title: "B8(b). Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]] },
+];
 
 const buildVcSectionScores = (person, vcData) => {
   const payload = {};
@@ -501,67 +529,47 @@ function VCReviewPanel({ person, personMode, onBack, onSubmit, readOnly = false 
 
   const generateVcReport = () => {
     if (!vcReviewCompleted) return;
-    const esc = (value) => String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-    const reportPartA = n(person.vcPartA ?? partA);
-    const reportPartB = n(person.vcPartB ?? partB);
-    const reportTotal = n(person.vcTotal ?? total);
-    const reportRemarks = person.vcRemarks || remarks || "No VC remarks recorded.";
-    const reviewerName = localStorage.getItem("name") || "Vice Chancellor";
-    const html = `
-<!doctype html>
-<html>
-<head>
-  <title>VC Appraisal Report</title>
-  <style>
-    body { font-family: Georgia, serif; color: #0f172a; padding: 28px; }
-    h1 { margin: 0 0 4px; font-size: 24px; }
-    .muted { color: #64748b; font-size: 12px; margin-bottom: 18px; }
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
-    .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
-    .label { color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-    .value { font-size: 14px; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; margin: 18px 0; }
-    th, td { border: 1px solid #cbd5e1; padding: 9px 10px; text-align: left; }
-    th { background: #0f172a; color: #f8fafc; }
-    .remarks { white-space: pre-wrap; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; }
-  </style>
-</head>
-<body>
-  <h1>VC Appraisal Report</h1>
-  <div class="muted">${esc(APP_INFO.UNIVERSITY_NAME)} | Academic Year ${esc(person.academicYear || person.info?.ay || VC_USER.ay || "")}</div>
-  <div class="grid">
-    <div class="box"><div class="label">Name</div><div class="value">${esc(person.name || "")}</div></div>
-    <div class="box"><div class="label">Role</div><div class="value">${esc(person.designation || personMode)}</div></div>
-    <div class="box"><div class="label">Employee ID</div><div class="value">${esc(person.employeeId || "")}</div></div>
-    <div class="box"><div class="label">School</div><div class="value">${esc(person.schoolName || person.school || "")}</div></div>
-    <div class="box"><div class="label">Reviewed By</div><div class="value">${esc(reviewerName)}</div></div>
-    <div class="box"><div class="label">Generated On</div><div class="value">${esc(new Date().toLocaleString())}</div></div>
-  </div>
-  <table>
-    <thead><tr><th>Section</th><th>Score</th><th>Maximum</th></tr></thead>
-    <tbody>
-      <tr><td>Part A - Teaching & Activities</td><td>${reportPartA.toFixed(1)}</td><td>200</td></tr>
-      <tr><td>Part B - Research & Contributions</td><td>${reportPartB.toFixed(1)}</td><td>375</td></tr>
-      <tr><td><strong>Grand Total</strong></td><td><strong>${reportTotal.toFixed(1)}</strong></td><td><strong>${MAX_SCORES.GRAND_TOTAL}</strong></td></tr>
-    </tbody>
-  </table>
-  <div class="label">VC Remarks</div>
-  <div class="remarks">${esc(reportRemarks)}</div>
-</body>
-</html>`;
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) {
-      alert("Please allow popups to generate the report.");
-      return;
-    }
-    win.document.write(html);
-    win.document.close();
-    win.print();
+    const reportForm = {
+      ...person,
+      info: {
+        ...(person.info || {}),
+        name: person.info?.name || person.name,
+        ay: person.info?.ay || person.academicYear || VC_USER.ay,
+        desig: person.info?.desig || person.designation || personMode,
+        school: person.info?.school || person.schoolName || person.school,
+      },
+      docs: person.docs || {},
+    };
+    VC_REVIEW_ARRAY_KEYS.forEach((key) => {
+      const rows = Array.isArray(person[key]) ? person[key] : (person[key] ? [person[key]] : []);
+      reportForm[key] = rows.map((row, index) => ({
+        ...row,
+        vc: vcData[key]?.[index]?.vc ?? row.vc ?? "",
+      }));
+    });
+    reportForm.innovVc = vcData.innovVc ?? vcData.innovVC ?? person.innovVc ?? "";
+    const chain = getReviewChain({ school: person.school, department: person.department, appraisal_role: person.appraisalRole || personMode });
+    const previousRoles = chain.filter((role) => role !== "vc");
+    openFullFormReport({
+      title: "VC Appraisal Report",
+      subtitle: `${APP_INFO.UNIVERSITY_NAME} | Academic Year ${person.academicYear || person.info?.ay || VC_USER.ay || ""}`,
+      form: reportForm,
+      docs: reportForm.docs,
+      partASections: VC_REPORT_PART_A_SECTIONS,
+      partBSections: VC_REPORT_PART_B_SECTIONS,
+      totals: {
+        partA: n(person.vcPartA ?? partA),
+        partB: n(person.vcPartB ?? partB),
+        total: n(person.vcTotal ?? total),
+      },
+      maxScores: { partA: 200, partB: 375, grand: MAX_SCORES.GRAND_TOTAL },
+      scoreRoles: ["score", ...previousRoles, "vc"],
+      roleLabel: (value) => value === "vc" ? "VC" : value === "director" ? "Director" : value === "hod" ? "HOD" : value === "dean" ? "Dean" : value,
+      status: person.status,
+      remarksLabel: "VC Remarks",
+      remarks: person.vcRemarks || remarks,
+      generatedBy: localStorage.getItem("name") || "Vice Chancellor",
+    });
   };
 
   const scoreCards = [];
@@ -1152,8 +1160,17 @@ export default function VCDashboard() {
         )}
 
         {reviewing && (
-          getSchoolKey(reviewing.person?.school) === "SoMCS" ? (
+          formTypeForSchool(getSchoolKey(reviewing.person?.school)) === FORM_TYPES.MEDIA_COMM ? (
             <MediaCommAuthorityReviewPanel
+              person={reviewing.person}
+              reviewerRole="vc"
+              onBack={() => setReviewing(null)}
+              onSubmit={(id, scores, remarks, sectionScores, reviewConfirmed) => handleSubmit(id, scores, remarks, reviewing.personMode, sectionScores, reviewConfirmed)}
+              readOnly={isVcReviewed(reviewing.person)}
+              showReport
+            />
+          ) : formTypeForSchool(getSchoolKey(reviewing.person?.school)) === FORM_TYPES.DESIGN_ARTS ? (
+            <DesignArtsAuthorityReviewPanel
               person={reviewing.person}
               reviewerRole="vc"
               onBack={() => setReviewing(null)}

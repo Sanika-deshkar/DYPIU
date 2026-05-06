@@ -10,12 +10,12 @@ import { supabase } from "../services/supabase";
 import { openFullFormReport } from "../utils/fullFormReport";
 import { getReviewChain, pendingStatusFor, profileFromLocalStorage, reviewedStatusFor, roleLabel } from "../utils/hierarchy";
 
-const ACCENT = "#b45309";
-const ACCENT2 = "#0f766e";
+const ACCENT = "#9d174d";
+const ACCENT2 = "#4338ca";
 const VERIFY_TEXT = "I have verified all the details and confirm that the information provided is correct. I am responsible for the accuracy of this data.";
 const PART_A_MAX = 200;
-const PART_B_MAX = 355;
-const GRAND_MAX = 555;
+const PART_B_MAX = 375;
+const GRAND_MAX = 575;
 const SECTION_OPTIONS = [
   { value: "partA", label: "Part-A Section" },
   { value: "partB", label: "Part-B Section" },
@@ -41,6 +41,8 @@ const SOCIETY_LABELS = [
   "Techno Social activities",
   "NSS",
   "Social visits",
+  "Project of Social Impact",
+  "Any other activity",
 ];
 
 const ACR_LABELS = [
@@ -51,13 +53,13 @@ const ACR_LABELS = [
   "Obedience",
 ];
 
-const emptyMediaForm = () => ({
+const emptyDesignArtsForm = () => ({
   info: {
     name: localStorage.getItem("name") || "",
     qual: localStorage.getItem("qualification") || "",
     desig: localStorage.getItem("designation") || "",
     ay: localStorage.getItem("academicYear") || "2025-2026",
-    school: localStorage.getItem("school") || "SoMCS - School of Media & Communication Studies",
+    school: localStorage.getItem("school") || "SoD - School of Design",
   },
   lectures: [{ sem: "", code: "", planned: "", conducted: "", score: "" }],
   courseFile: [{ course: "", title: "", details: "", score: "" }],
@@ -65,9 +67,9 @@ const emptyMediaForm = () => ({
   innovScore: "",
   projects: [
     { label: "Project guided (3/batch)", score: "" },
-    { label: "Industrial collaboration / Sponsorship", score: "" },
-    { label: "Award received", score: "" },
-    { label: "Project outcome: events/publications", score: "" },
+    { label: "Industrial collaboration / Sponsorship (Max 5)", score: "" },
+    { label: "Award received (Max 5 marks)", score: "" },
+    { label: "Project outcome: events/publications (Max 5)", score: "" },
   ],
   quals: [
     { label: "Higher Qualification achieved", score: "" },
@@ -77,18 +79,18 @@ const emptyMediaForm = () => ({
   deptActs: [{ activity: "", nature: "", score: "" }],
   uniActs: [{ activity: "", nature: "", score: "" }],
   society: SOCIETY_LABELS.map((label) => ({ label, details: "", score: "" })),
+  industry: [{ name: "", details: "", score: "" }],
   acr: ACR_LABELS.map((label) => ({ label, score: "" })),
   journals: [{ title: "", journal: "", issn: "", index: "", score: "" }],
-  popularWritings: [{ media: "", film: "", score: "" }],
   books: [{ title: "", book: "", isbn: "", publisher: "", coAuthors: "", first: "", score: "" }],
   ict: [{ title: "", desc: "", type: "", quad: "", score: "" }],
   research: [{ degree: "", name: "", thesis: "", score: "" }],
   internalProjects: [{ title: "", agency: "", date: "", amount: "", role: "", status: "", score: "" }],
   externalProjects: [{ title: "", agency: "", date: "", amount: "", role: "", status: "", score: "" }],
+  ipr: [{ title: "", scope: "", date: "", status: "", fileNo: "", score: "" }],
   awards: [{ title: "", date: "", agency: "", level: "", score: "" }],
   confs: [{ title: "", type: "", org: "", level: "", score: "" }],
   proposals: [{ title: "", duration: "", agency: "", amount: "", score: "" }],
-  products: [{ details: "", used: "", score: "" }],
   fdps: [{ program: "", duration: "", org: "", score: "" }],
   training: [{ company: "", duration: "", nature: "", score: "" }],
 });
@@ -96,31 +98,31 @@ const emptyMediaForm = () => ({
 const cloneRows = (rows) => JSON.parse(JSON.stringify(rows || []));
 
 const PART_A_SECTIONS = [
-  { key: "lectures", title: "A(i). Lectures / Tutorials / Practicals", max: 50, doc: "lec", fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
+  { key: "lectures", title: "A(i). Lectures / Tutorials / Practicals", max: 40, doc: "lec", fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
   { key: "courseFile", title: "A(ii). Course File", max: 20, doc: "cf", fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
-  { key: "projects", title: "A(iv). Project Guidance", max: 10, doc: "proj", fields: [["label", "Project Category", true]] },
+  { key: "projects", title: "A(iv). Project Guidance", max: 20, doc: "proj", fields: [["label", "Project Category", true]] },
   { key: "quals", title: "A(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category", true]] },
   { key: "feedback", title: "Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
   { key: "deptActs", title: "Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
   { key: "uniActs", title: "University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
   { key: "society", title: "Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity", true], ["details", "Details"]] },
+  { key: "industry", title: "Industry Connect", max: 5, doc: "ind", fields: [["name", "Name"], ["details", "Details"]] },
   { key: "acr", title: "Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter", true]], selfReadOnlyScore: true },
 ];
 
 const PART_B_SECTIONS = [
   { key: "journals", title: "B1(i). Published Papers in Journals", max: 80, doc: "jour", fields: [["title", "Title with Page Nos."], ["journal", "Journal Details"], ["issn", "ISSN No."], ["index", "Indexing"]] },
-  { key: "popularWritings", title: "B1(ii). Popular Writings, Film & Documentary", max: 40, doc: "pop", fields: [["media", "Newspaper / Magazine / Website"], ["film", "Film / Documentary"]] },
   { key: "books", title: "B2. Articles / Chapters in Books", max: 60, doc: "book", fields: [["title", "Title"], ["book", "Book & Publisher"], ["isbn", "ISBN"], ["publisher", "Type"], ["coAuthors", "Co-authors"], ["first", "First Author?"]] },
-  { key: "ict", title: "B3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 30, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
+  { key: "ict", title: "B3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 50, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
   { key: "research", title: "B4(a). Research Guidance - PhD / PG", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
   { key: "internalProjects", title: "B4(b). Internal Research Projects", max: 15, doc: "int", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "externalProjects", title: "B4(c). External Research Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "awards", title: "B4(d). Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
-  { key: "confs", title: "B5. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
-  { key: "proposals", title: "B6(a). Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
-  { key: "products", title: "B6(b). Products Developed / Used", max: 20, doc: "prod", fields: [["details", "Product Details"], ["used", "Used / Adopted"]] },
-  { key: "fdps", title: "B7. FDP / Self Development", max: 20, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
-  { key: "training", title: "B8. Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]] },
+  { key: "externalProjects", title: "B4(c). External Research / Consultancy Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "ipr", title: "B5(a). IPR / Copyright / Patent", max: 40, doc: "ipr", fields: [["title", "Title"], ["scope", "Scope"], ["date", "Date"], ["status", "Status"], ["fileNo", "File No."]] },
+  { key: "awards", title: "B5(b). Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
+  { key: "confs", title: "B6. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
+  { key: "proposals", title: "B7. Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
+  { key: "fdps", title: "B8(a). FDP / Self Development", max: 10, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
+  { key: "training", title: "B8(b). Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]] },
 ];
 
 const ALL_ARRAY_KEYS = [...PART_A_SECTIONS, ...PART_B_SECTIONS].map((section) => section.key);
@@ -132,12 +134,12 @@ const scoreKeyForInnov = (role) => ({
   vc: "innovVc",
 }[role] || "innovScore");
 
-const calculateMediaTotals = (form, scoreKey = "score") => {
+const calculateDesignArtsTotals = (form, scoreKey = "score") => {
   const rowSum = (key) => (form[key] || []).reduce((total, row) => total + n(row?.[scoreKey]), 0);
   const partA = Math.min(PART_A_MAX,
     rowSum("lectures") + rowSum("courseFile") + n(scoreKey === "score" ? form.innovScore : form[scoreKeyForInnov(scoreKey)]) +
     rowSum("projects") + rowSum("quals") + rowSum("feedback") + rowSum("deptActs") + rowSum("uniActs") +
-    rowSum("society") + rowSum("acr")
+    rowSum("society") + rowSum("industry") + rowSum("acr")
   );
   const partB = PART_B_SECTIONS.reduce((total, section) => total + rowSum(section.key), 0);
   return { partA, partB, total: partA + partB };
@@ -361,7 +363,7 @@ function InnovativeSection({ form, setForm, docs, setDocs, mode, locked, reviewe
   );
 }
 
-function MediaForm({ form, setForm, docs, setDocs, mode = "self", locked = false, reviewerRole = "", reviewData = {}, setReviewData = () => {}, previousRoles = [], sectionView = "partA" }) {
+function DesignArtsForm({ form, setForm, docs, setDocs, mode = "self", locked = false, reviewerRole = "", reviewData = {}, setReviewData = () => {}, previousRoles = [], sectionView = "partA" }) {
   return (
     <>
       {(sectionView === "partA" || sectionView === "all") && (
@@ -456,7 +458,7 @@ function WorkflowTracker({ declaration, reviews, profile }) {
   );
 }
 
-function buildMediaSectionScores(person, reviewData, reviewerRole) {
+function buildDesignArtsSectionScores(person, reviewData, reviewerRole) {
   const payload = {};
   ALL_ARRAY_KEYS.forEach((key) => {
     const rows = Array.isArray(person[key]) ? person[key] : [];
@@ -472,12 +474,12 @@ function buildMediaSectionScores(person, reviewData, reviewerRole) {
   return payload;
 }
 
-export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, onSubmit, readOnly = false, showReport = false }) {
+export function DesignArtsAuthorityReviewPanel({ person, reviewerRole, onBack, onSubmit, readOnly = false, showReport = false }) {
   const [sectionView, setSectionView] = useState("partA");
   const [reviewData, setReviewData] = useState({});
   const [remarks, setRemarks] = useState(person?.[`${reviewerRole}Remarks`] || "");
   const [confirmed, setConfirmed] = useState(false);
-  const form = mergeForm(emptyMediaForm(), person || {});
+  const form = mergeForm(emptyDesignArtsForm(), person || {});
   const [docs, setDocs] = useState(form.docs || {});
   const subjectProfile = { school: person?.school, department: person?.department, appraisal_role: person?.appraisalRole };
   const chain = getReviewChain(subjectProfile);
@@ -495,14 +497,14 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
     merged[scoreKeyForInnov(reviewerRole)] = reviewData.innovativeTeaching?.[reviewerRole] ?? form[scoreKeyForInnov(reviewerRole)] ?? "";
     return merged;
   }, [form, reviewData, reviewerRole]);
-  const totals = calculateMediaTotals(reviewerForm, reviewerRole);
+  const totals = calculateDesignArtsTotals(reviewerForm, reviewerRole);
   const reviewCompleted = readOnly || /Reviewed/.test(person?.status || "") || n(person?.[`${reviewerRole}Total`]) > 0;
 
   const generateReviewReport = () => {
     if (!reviewCompleted) return;
     openFullFormReport({
-      title: "SoMCS VC Appraisal Report",
-      subtitle: "School of Media & Communication Studies",
+      title: "Design & Applied Arts VC Appraisal Report",
+      subtitle: "School of Design / School of Applied Arts",
       form: reviewerForm,
       docs,
       partASections: PART_A_SECTIONS,
@@ -528,7 +530,7 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
         <button onClick={onBack} style={smallButton("#1e293b")}>Back</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 900 }}>{person?.name || person?.email}</div>
-          <div style={{ color: "#94a3b8", fontSize: 12 }}>{person?.designation || titleCase(person?.appraisalRole)} - SoMCS</div>
+          <div style={{ color: "#94a3b8", fontSize: 12 }}>{person?.designation || titleCase(person?.appraisalRole)} - Design & Applied Arts</div>
         </div>
         <StatusBadge status={person?.status} />
       </div>
@@ -536,7 +538,7 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
         <SectionSelector value={sectionView} onChange={setSectionView} label="Review Section" />
       </div>
       {(sectionView === "partA" || sectionView === "partB") && (
-        <MediaForm
+        <DesignArtsForm
           form={form}
           setForm={() => {}}
           docs={docs}
@@ -552,7 +554,7 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
       )}
       {sectionView === "summary" && (
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 18, display: "grid", gap: 14 }}>
-          <SummaryBox totals={totals} roleScoreLabel={`${roleLabel(reviewerRole)} score for the SoMCS media appraisal form.`} />
+          <SummaryBox totals={totals} roleScoreLabel={`${roleLabel(reviewerRole)} score for the Design & Applied Arts appraisal form.`} />
           <label style={{ display: "grid", gap: 6, fontWeight: 800, color: "#134e4a", fontSize: 13 }}>
             {roleLabel(reviewerRole)} Remarks
             <textarea value={remarks} readOnly={readOnly} onChange={(event) => setRemarks(event.target.value)} rows={5} style={{ border: "1px solid #99f6e4", borderRadius: 7, padding: 10, fontFamily: "Georgia, serif", resize: "vertical" }} />
@@ -567,7 +569,7 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
             )}
             {!readOnly && (
               <button
-                onClick={() => onSubmit(person.id, { partA: totals.partA, partB: totals.partB, total: totals.total }, remarks, buildMediaSectionScores(form, reviewData, reviewerRole), confirmed)}
+                onClick={() => onSubmit(person.id, { partA: totals.partA, partB: totals.partB, total: totals.total }, remarks, buildDesignArtsSectionScores(form, reviewData, reviewerRole), confirmed)}
                 disabled={!confirmed}
                 style={smallButton(confirmed ? "#059669" : "#94a3b8")}
               >
@@ -581,13 +583,13 @@ export function MediaCommAuthorityReviewPanel({ person, reviewerRole, onBack, on
   );
 }
 
-export default function MediaCommDashboard({ fixedRole }) {
+export default function DesignArtsDashboard({ fixedRole }) {
   const navigate = useNavigate();
   const role = fixedRole || localStorage.getItem("role") || "faculty";
   const profile = profileFromLocalStorage();
   const [activeTab, setActiveTab] = useState(role === "faculty" ? "my" : "approvals");
   const [selfSectionView, setSelfSectionView] = useState("partA");
-  const [form, setForm] = useState(emptyMediaForm);
+  const [form, setForm] = useState(emptyDesignArtsForm);
   const [docs, setDocs] = useState({});
   const [queue, setQueue] = useState([]);
   const [reviewing, setReviewing] = useState(null);
@@ -599,7 +601,7 @@ export default function MediaCommDashboard({ fixedRole }) {
   const userEmail = localStorage.getItem("username") || "";
   const academicYear = form.info?.ay || "2025-2026";
   const locked = Boolean(declaration);
-  const totals = calculateMediaTotals(form, "score");
+  const totals = calculateDesignArtsTotals(form, "score");
   const canSelfSubmit = role !== "vc";
 
   const setters = useMemo(() => Object.fromEntries([
@@ -618,7 +620,7 @@ export default function MediaCommDashboard({ fixedRole }) {
     Promise.all([
       loadSavedAppraisal({ facultyEmail: userEmail, academicYear, setters }),
       loadAppraisalDocuments({ facultyEmail: userEmail, academicYear, setDocs }),
-    ]).catch((err) => console.error("Could not load SoMCS appraisal:", err));
+    ]).catch((err) => console.error("Could not load Design & Applied Arts appraisal:", err));
   }, [userEmail, academicYear, setters, canSelfSubmit]);
 
   useEffect(() => {
@@ -641,9 +643,9 @@ export default function MediaCommDashboard({ fixedRole }) {
     setLoadingQueue(true);
     try {
       const items = await fetchReviewQueueForRole({ reviewerRole: role, reviewerProfile: { ...profile, appraisal_role: role } });
-      setQueue(items.filter((item) => FORM_SCHOOL_CODES[FORM_TYPES.MEDIA_COMM].includes(getSchoolKey(item.school))));
+      setQueue(items.filter((item) => FORM_SCHOOL_CODES[FORM_TYPES.DESIGN_ARTS].includes(getSchoolKey(item.school))));
     } catch (err) {
-      console.error("Could not load SoMCS review queue:", err);
+      console.error("Could not load Design & Applied Arts review queue:", err);
       setQueue([]);
     } finally {
       setLoadingQueue(false);
@@ -674,7 +676,7 @@ export default function MediaCommDashboard({ fixedRole }) {
         submitterProfile: { ...profile, appraisal_role: role },
       });
       setDeclaration({ status: pendingStatusFor(getReviewChain({ ...profile, appraisal_role: role })[0]), submitted_at: new Date().toISOString() });
-      alert("SoMCS appraisal submitted successfully.");
+      alert("Design & Applied Arts appraisal submitted successfully.");
     } catch (err) {
       alert(`Unable to submit appraisal.\n\n${err.message}`);
     } finally {
@@ -710,8 +712,8 @@ export default function MediaCommDashboard({ fixedRole }) {
 
   const generateSelfReport = () => {
     openFullFormReport({
-      title: "SoMCS Appraisal Report",
-      subtitle: "School of Media & Communication Studies",
+      title: "Design & Applied Arts Appraisal Report",
+      subtitle: "School of Design / School of Applied Arts",
       form,
       docs,
       partASections: PART_A_SECTIONS,
@@ -732,7 +734,7 @@ export default function MediaCommDashboard({ fixedRole }) {
       <aside style={{ width: 230, height: "100vh", minHeight: "100vh", position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box", overflow: "hidden", background: "#0f172a", color: "#f8fafc", padding: "18px 12px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ borderBottom: "1px solid #1e293b", paddingBottom: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 900 }}>{APP_INFO.PORTAL_NAME}</div>
-          <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 3 }}>Media & Communication</div>
+          <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 3 }}>Design & Applied Arts</div>
         </div>
         {canSelfSubmit && (
           <>
@@ -781,7 +783,7 @@ export default function MediaCommDashboard({ fixedRole }) {
       </aside>
       <main style={{ flex: 1, padding: "20px 24px", overflowX: "auto" }}>
         <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: 0, color: "#0f172a", fontSize: 21 }}>School of Media & Communication Studies</h2>
+          <h2 style={{ margin: 0, color: "#0f172a", fontSize: 21 }}>School of Design & Applied Arts</h2>
           <div style={{ color: "#64748b", fontSize: 12, marginTop: 3 }}>{roleLabel(role)} workflow dashboard</div>
         </div>
 
@@ -789,7 +791,7 @@ export default function MediaCommDashboard({ fixedRole }) {
           <div style={{ display: "grid", gap: 16 }}>
             <WorkflowTracker declaration={declaration} reviews={reviews} profile={{ ...profile, appraisal_role: role }} />
             {(selfSectionView === "partA" || selfSectionView === "partB") && (
-              <MediaForm
+              <DesignArtsForm
                 form={form}
                 setForm={setForm}
                 docs={docs}
@@ -801,7 +803,7 @@ export default function MediaCommDashboard({ fixedRole }) {
             )}
             {selfSectionView === "summary" && (
               <div style={{ display: "grid", gap: 16 }}>
-                <SummaryBox totals={totals} roleScoreLabel="Faculty/self appraisal score from the Media & Communication form." />
+                <SummaryBox totals={totals} roleScoreLabel="Faculty/self appraisal score from the Design & Applied Arts form." />
                 <div style={{ display: "grid", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
                   {locked ? <StatusBadge status={declaration?.status || "Submitted"} /> : <AccuracyCheckbox checked={confirmed} onChange={setConfirmed} />}
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
@@ -820,8 +822,8 @@ export default function MediaCommDashboard({ fixedRole }) {
 
         {activeTab === "approvals" && !reviewing && role !== "faculty" && (
           <div style={{ display: "grid", gap: 14 }}>
-            {loadingQueue && <div style={{ color: "#64748b" }}>Loading SoMCS queue...</div>}
-            {!loadingQueue && queue.length === 0 && <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 30, color: "#64748b" }}>No SoMCS submissions are assigned to you.</div>}
+            {loadingQueue && <div style={{ color: "#64748b" }}>Loading Design & Applied Arts queue...</div>}
+            {!loadingQueue && queue.length === 0 && <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 30, color: "#64748b" }}>No Design & Applied Arts submissions are assigned to you.</div>}
             {queue.map((item) => (
               <div key={item.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderTop: `3px solid ${ACCENT}`, borderRadius: 10, padding: 16, display: "grid", gap: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
@@ -831,7 +833,7 @@ export default function MediaCommDashboard({ fixedRole }) {
                   </div>
                   <StatusBadge status={item.status} />
                 </div>
-                <SummaryBox totals={calculateMediaTotals(mergeForm(emptyMediaForm(), item), "score")} roleScoreLabel={`Submitted on ${item.submittedOn || "record"}`} />
+                <SummaryBox totals={calculateDesignArtsTotals(mergeForm(emptyDesignArtsForm(), item), "score")} roleScoreLabel={`Submitted on ${item.submittedOn || "record"}`} />
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <button onClick={() => setReviewing(item)} style={smallButton(item.status === "Reviewed" ? "#1e293b" : ACCENT2)}>
                     {item.status === "Reviewed" ? "View Review" : "Review Form"}
@@ -843,7 +845,7 @@ export default function MediaCommDashboard({ fixedRole }) {
         )}
 
         {activeTab === "approvals" && reviewing && (
-          <MediaCommAuthorityReviewPanel
+          <DesignArtsAuthorityReviewPanel
             person={reviewing}
             reviewerRole={role}
             onBack={() => setReviewing(null)}
