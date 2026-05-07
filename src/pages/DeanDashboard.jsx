@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ACR_DETAIL_POINTS, SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { HodInput } from "../components/Inputs";
@@ -154,7 +154,7 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} href={f.previewUrl || f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           👁 {f.name.length > 12 ? f.name.slice(0, 12) + "…" : f.name}
         </a>
       ))}
@@ -194,7 +194,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+        <a key={i} href={f.previewUrl || f.url} target="_blank" rel="noreferrer"
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#0ea5e9", fontSize: 10, textDecoration: "none", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}>
           📄 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
@@ -1062,63 +1062,68 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
   const docs = approval.docs || {};
   const rows = (key) => Array.isArray(approval[key]) ? approval[key] : [];
   const cell = (value, center = false) => <RO val={value} center={center} />;
+  const approvalRef = useRef(approval);
+  const docsRef = useRef(docs);
+  const deanDataRef = useRef(deanData);
 
-  const scoreHeaders = (
-    <>
-      <th style={TH}>Faculty Score</th>
-      <th style={TH_DEAN}>Dean Score</th>
-    </>
-  );
+  approvalRef.current = approval;
+  docsRef.current = docs;
+  deanDataRef.current = deanData;
 
-  const ScoreCells = ({ sectionKey, row, index }) => (
-    <>
-      <td style={TDS}>{cell(row.score, true)}</td>
-      <td style={TDS_DEAN}><DeanScoreCell sectionKey={sectionKey} index={index} row={row} deanData={deanData} setDeanData={setDeanData} /></td>
-    </>
-  );
+  const ReviewTable = useMemo(() => {
+    return function StableDeanReviewTable({ title, accent = "#4c1d95", sectionKey, columns, docPrefix, rows: sectionRows }) {
+      const dataRows = sectionRows || (Array.isArray(approvalRef.current[sectionKey]) ? approvalRef.current[sectionKey] : []);
+      const hasDocs = Boolean(docPrefix);
+      const totalColumns = 1 + columns.length + (hasDocs ? 1 : 0) + 2;
 
-  const ReviewTable = ({ title, accent = "#4c1d95", sectionKey, columns, docPrefix, rows: sectionRows }) => {
-    const dataRows = sectionRows || rows(sectionKey);
-    const hasDocs = Boolean(docPrefix);
-    const totalColumns = 1 + columns.length + (hasDocs ? 1 : 0) + 2;
-
-    return (
-      <SC title={title} accent={accent}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={T}>
-            <thead>
-              <tr>
-                <th style={TH}>SN</th>
-                {columns.map((column) => <th key={column.label} style={TH}>{column.label}</th>)}
-                {hasDocs && <th style={TH}>View Docs</th>}
-                {scoreHeaders}
-              </tr>
-            </thead>
-            <tbody>
-              {dataRows.length ? dataRows.map((row, index) => (
-                <tr key={`${sectionKey}-${index}`} style={index % 2 ? { background: "#f8fafc" } : {}}>
-                  <td style={TDC}>{index + 1}</td>
-                  {columns.map((column) => (
-                    <td key={column.label} style={column.center ? TDC : TD}>
-                      {cell(column.render(row), column.center)}
-                    </td>
-                  ))}
-                  {hasDocs && <td style={TDV}><ViewDocsCell docKey={`${docPrefix}-${index}`} docs={docs} /></td>}
-                  <ScoreCells sectionKey={sectionKey} row={row} index={index} />
-                </tr>
-              )) : (
+      return (
+        <SC title={title} accent={accent}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={T}>
+              <thead>
                 <tr>
-                  <td style={{ ...TDC, color: "#94a3b8", fontStyle: "italic" }} colSpan={totalColumns}>
-                    No submitted rows for this table.
-                  </td>
+                  <th style={TH}>SN</th>
+                  {columns.map((column) => <th key={column.label} style={TH}>{column.label}</th>)}
+                  {hasDocs && <th style={TH}>View Docs</th>}
+                  <th style={TH}>Faculty Score</th>
+                  <th style={TH_DEAN}>Dean Score</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SC>
-    );
-  };
+              </thead>
+              <tbody>
+                {dataRows.length ? dataRows.map((row, index) => (
+                  <tr key={`${sectionKey}-${index}`} style={index % 2 ? { background: "#f8fafc" } : {}}>
+                    <td style={TDC}>{index + 1}</td>
+                    {columns.map((column) => (
+                      <td key={column.label} style={column.center ? TDC : TD}>
+                        {cell(column.render(row), column.center)}
+                      </td>
+                    ))}
+                    {hasDocs && <td style={TDV}><ViewDocsCell docKey={`${docPrefix}-${index}`} docs={docsRef.current} /></td>}
+                    <td style={TDS}>{cell(row.score, true)}</td>
+                    <td style={TDS_DEAN}>
+                      <DeanScoreCell
+                        sectionKey={sectionKey}
+                        index={index}
+                        row={row}
+                        deanData={deanDataRef.current}
+                        setDeanData={setDeanData}
+                      />
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td style={{ ...TDC, color: "#94a3b8", fontStyle: "italic" }} colSpan={totalColumns}>
+                      No submitted rows for this table.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SC>
+      );
+    };
+  }, [setDeanData]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>

@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
-import { feedbackRowScore } from "../utils/appraisalFormUtils";
+import { feedbackRowScore, stripTransientDocUrls } from "../utils/appraisalFormUtils";
 import { getReviewChain, pendingStatusFor, profileFromsessionStorage, workflowValidationError } from "../utils/hierarchy";
+import { cloudinaryOriginalPdfUrl, cloudinaryPdfPreviewUrl, isPdfDocument } from "./cloudinary";
 
 const n = (value) => parseFloat(value) || 0;
 const inputValue = (value) => value ?? "";
@@ -129,7 +130,7 @@ const saveAppraisalSnapshot = async ({
       payload: {
         form,
         totals,
-        docs,
+        docs: stripTransientDocUrls(docs),
         submitterProfile,
         savedAt: new Date().toISOString(),
       },
@@ -189,7 +190,7 @@ export const docsToRows = (docs, facultyEmail, academicYear) =>
         doc_key: docKey,
         file_name: file.name,
         file_type: file.type,
-        file_url: file.url,
+        file_url: cloudinaryOriginalPdfUrl(file.originalUrl || file.url),
         storage_path: file.publicId || null,
       }))
   );
@@ -210,10 +211,14 @@ export const loadAppraisalDocuments = async ({ facultyEmail, academicYear, setDo
   (data || []).forEach((row) => {
     const key = row.doc_key || `${row.section}-${Math.max((row.row_no || 1) - 1, 0)}`;
     if (groupedDocs[key]?.length) return;
+    const url = cloudinaryOriginalPdfUrl(row.file_url);
     groupedDocs[key] = [{
       name: row.file_name,
       type: row.file_type,
-      url: row.file_url,
+      url,
+      previewImageUrl: isPdfDocument({ name: row.file_name, type: row.file_type, url }) && url?.includes("/image/upload/")
+        ? cloudinaryPdfPreviewUrl(url)
+        : undefined,
       publicId: row.storage_path,
     }];
   });

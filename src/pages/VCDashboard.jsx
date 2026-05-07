@@ -93,7 +93,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+        <a key={i} href={f.previewUrl || f.url} target="_blank" rel="noreferrer"
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#0ea5e9", fontSize: 10, textDecoration: "none", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}>
           📄 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
@@ -301,7 +301,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
   const courseFileRow = Array.isArray(person.courseFile) ? (person.courseFile[0] || {}) : (person.courseFile || {});
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
 
-  const ScoreHeaders = () => (
+  const scoreHeaders = (
     <>
       <th style={TH}>{selfScoreLabel}</th>
       {reviewRoles.map((role) => {
@@ -312,7 +312,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
     </>
   );
 
-  const ScoreCells = ({ r, section, i }) => (
+  const scoreCells = (r, section, i) => (
     <>
       <td style={TDS}><RO val={r?.score} center /></td>
       {reviewRoles.map((role) => {
@@ -356,14 +356,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
           <table style={T}><thead><tr>
             <th style={TH}>SN</th><th style={TH}>Semester</th><th style={TH}>Course</th>
             <th style={TH}>Classes (as per course structure)</th><th style={TH}>Classes Actually Conducted</th><th style={TH}>Docs</th>
-            <ScoreHeaders />
+            {scoreHeaders}
           </tr></thead>
           <tbody>{rows(person.lectures).map((r, i) => (
             <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
               <td style={TDC}>{i + 1}</td><td style={TD}><RO val={r.sem} /></td><td style={TD}><RO val={r.code} /></td>
               <td style={TDC}><RO val={r.planned} center /></td><td style={TDC}><RO val={r.conducted} center /></td>
               <td style={TDV}><ViewDocsCell docKey={`lec-${i}`} docs={docs} /></td>
-              <ScoreCells r={r} section="lectures" i={i} />
+              {scoreCells(r, "lectures", i)}
             </tr>
           ))}</tbody></table>
         </div>
@@ -373,14 +373,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
       <SC title="A2. Course File (Max 20)" accent="#7c3aed">
         <table style={T}><thead><tr>
           <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th><th style={TH}>Docs</th>
-          <ScoreHeaders />
+          {scoreHeaders}
         </tr></thead>
         <tbody><tr>
           <td style={TD}><RO val={courseFileRow.course} /></td>
           <td style={TD}><RO val={courseFileRow.title} /></td>
           <td style={TDC}><RO val={courseFileRow.details} center /></td>
           <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-          <ScoreCells r={courseFileRow} section="courseFile" i={null} />
+          {scoreCells(courseFileRow, "courseFile", null)}
         </tr></tbody></table>
       </SC>
 
@@ -388,7 +388,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
       <SC title="A3. Innovative Teaching-Learning (Max 10)" accent="#7c3aed">
         <table style={T}><thead><tr>
           <th style={TH}>Method</th>
-          <ScoreHeaders />
+          {scoreHeaders}
         </tr></thead>
         <tbody><tr>
           <td style={TD}>Innovative / participatory teaching methods used</td>
@@ -409,14 +409,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
         <SC key={key} title={title} accent="#7c3aed">
           <table style={T}><thead><tr>
             <th style={TH}>SN</th><th style={TH}>Description</th><th style={TH}>Docs</th>
-            <ScoreHeaders />
+            {scoreHeaders}
           </tr></thead>
           <tbody>{rows(person[key]).map((r, i) => (
             <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
               <td style={TDC}>{i + 1}</td>
               <td style={TD}><RO val={r.label} /></td>
               <td style={TDV}><ViewDocsCell docKey={`${docPfx}-${i}`} docs={docs} /></td>
-              <ScoreCells r={r} section={key} i={i} />
+              {scoreCells(r, key, i)}
             </tr>
           ))}</tbody></table>
         </SC>
@@ -426,14 +426,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
       <SC title="B. Student Feedback (Max 10)" accent="#7c3aed">
         <table style={T}><thead><tr>
           <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>First Feedback</th><th style={TH}>Second Feedback</th><th style={TH}>Average</th>
-          <ScoreHeaders />
+          {scoreHeaders}
         </tr></thead>
         <tbody>{rows(person.feedback).map((r, i) => (
           <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
             <td style={TDC}>{i + 1}</td><td style={TD}><RO val={r.code} /></td>
             <td style={TDC}><RO val={r.fb1} center /></td><td style={TDC}><RO val={r.fb2} center /></td>
             <td style={{ ...TDC, fontWeight: 700, color: "#0ea5e9" }}>{r.fb1 && r.fb2 ? ((n(r.fb1) + n(r.fb2)) / 2).toFixed(2) : "—"}</td>
-            <ScoreCells r={r} section="feedback" i={i} />
+            {scoreCells(r, "feedback", i)}
           </tr>
         ))}</tbody></table>
       </SC>
@@ -450,14 +450,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
             <th style={TH}>SN</th>
             {cols.map(c => <th key={c} style={TH}>{c}</th>)}
             <th style={TH}>Docs</th>
-            <ScoreHeaders />
+            {scoreHeaders}
           </tr></thead>
           <tbody>{rows(person[key]).map((r, i) => (
             <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
               <td style={TDC}>{i + 1}</td>
               {fields.map(f => <td key={f} style={TD}><RO val={r[f]} /></td>)}
               <td style={TDV}><ViewDocsCell docKey={`${docPfx}-${i}`} docs={docs} /></td>
-              <ScoreCells r={r} section={key} i={i} />
+              {scoreCells(r, key, i)}
             </tr>
           ))}</tbody></table>
         </SC>
@@ -467,13 +467,13 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
       <SC title="G. Annual Confidential Report (Max 25)" accent="#ef4444">
         <table style={T}><thead><tr>
           <th style={TH}>SN</th><th style={TH}>Parameter</th>
-          <ScoreHeaders />
+          {scoreHeaders}
         </tr></thead>
         <tbody>{rows(person.acr).map((r, i) => (
           <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
             <td style={TDC}>{i + 1}</td>
             <td style={TD}><RO val={r.label} /></td>
-            <ScoreCells r={r} section="acr" i={i} />
+            {scoreCells(r, "acr", i)}
           </tr>
         ))}</tbody></table>
       </SC>
@@ -485,14 +485,14 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
         <div style={{ overflowX: "auto" }}><table style={T}><thead><tr>
           <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Journal</th>
           <th style={TH}>ISSN</th><th style={TH}>Index</th><th style={TH}>Docs</th>
-          <ScoreHeaders />
+          {scoreHeaders}
         </tr></thead>
         <tbody>{rows(person.journals).map((r, i) => (
           <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
             <td style={TDC}>{i + 1}</td><td style={TD}><RO val={r.title} /></td><td style={TD}><RO val={r.journal} /></td>
             <td style={TDC}><RO val={r.issn} center /></td><td style={TDC}><RO val={r.index} center /></td>
             <td style={TDV}><ViewDocsCell docKey={`jour-${i}`} docs={docs} /></td>
-            <ScoreCells r={r} section="journals" i={i} />
+            {scoreCells(r, "journals", i)}
           </tr>
         ))}</tbody></table></div>
       </SC>
@@ -526,7 +526,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
           <div style={{ overflowX: "auto" }}><table style={T}><thead>
             <tr>
               <th style={TH}>SN</th><th style={TH}>Details</th><th style={TH}>Docs</th>
-              <ScoreHeaders />
+              {scoreHeaders}
             </tr>
           </thead>
           <tbody>{rows(person[key]).map((r, i) => {
@@ -540,7 +540,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
                   ))}
                 </td>
                 <td style={TDV}><ViewDocsCell docKey={`${docPfx}-${i}`} docs={docs} /></td>
-                <ScoreCells r={r} section={key} i={i} />
+                {scoreCells(r, key, i)}
               </tr>
             );
           })}</tbody></table></div>

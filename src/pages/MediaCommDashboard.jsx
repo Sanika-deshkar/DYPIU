@@ -289,7 +289,7 @@ function DocCell({ id, docs, setDocs, readOnly }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((file, index) => (
         <div key={`${file.name}-${index}`} style={{ display: "flex", alignItems: "center", gap: 5, background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: 4, padding: "2px 6px" }}>
-          <a href={file.url} target="_blank" rel="noreferrer" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", color: ACCENT, textDecoration: "none", fontSize: 10 }}>{file.name}</a>
+          <a href={file.previewUrl || file.url} target="_blank" rel="noreferrer" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", color: ACCENT, textDecoration: "none", fontSize: 10 }}>{file.name}</a>
           {!readOnly && <button type="button" onClick={() => removeFile(index)} style={{ border: 0, background: "transparent", color: "#dc2626", cursor: "pointer" }}>x</button>}
         </div>
       ))}

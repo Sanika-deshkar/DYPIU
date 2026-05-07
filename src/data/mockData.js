@@ -43,15 +43,29 @@ export const VC_USER = {
 
 export const CREDENTIALS = {
   faculty: { name: "Dr. Priya Sharma", password: "f1", role: "faculty",  school: schoolLabel("SoEMR"), department: SOEMR_DEPARTMENTS[0] },
+  "engg.faculty@demo.local": { name: "Dr. Asha Engineer", password: "demo123", role: "faculty", school: schoolLabel("SoEMR"), department: SOEMR_DEPARTMENTS[0], designation: "Assistant Professor", employeeId: "DEMO-ENGG-001" },
+  enggfaculty: { name: "Dr. Asha Engineer", password: "demo123", role: "faculty", school: schoolLabel("SoEMR"), department: SOEMR_DEPARTMENTS[0], designation: "Assistant Professor", employeeId: "DEMO-ENGG-001" },
+  "nonengg.faculty@demo.local": { name: "Dr. Nisha Commerce", password: "demo123", role: "faculty", school: schoolLabel("SoC"), department: "", designation: "Assistant Professor", employeeId: "DEMO-NENG-001" },
+  nonenggfaculty: { name: "Dr. Nisha Commerce", password: "demo123", role: "faculty", school: schoolLabel("SoC"), department: "", designation: "Assistant Professor", employeeId: "DEMO-NENG-001" },
   cisrfaculty: { name: "Dr. CISR Faculty", password: "cf1", role: "faculty", school: schoolLabel("CISR"), department: "" },
   hod:     { name: "Prof. Rajesh Kulkarni", password: "hod1", role: "hod",      school: schoolLabel("SoEMR"), department: SOEMR_DEPARTMENTS[0] },
+  "engg.hod@demo.local": { name: "Prof. Hemant HOD", password: "demo123", role: "hod", school: schoolLabel("SoEMR"), department: SOEMR_DEPARTMENTS[0], designation: "Professor & Head", employeeId: "DEMO-ENGG-HOD" },
   centerhead: { name: "Dr. CISR Center Head", password: "ch1", role: "center_head", school: schoolLabel("CISR"), department: "" },
   dean:    { name: "Prof. Suresh Patil", password: "dean1", role: "dean",      school: schoolLabel("SoCSEA"), department: "Engineering" },
+  "engg.dean@demo.local": { name: "Prof. Kavita Engineering Dean", password: "demo123", role: "dean", school: schoolLabel("SoCSEA"), department: "Engineering", designation: "Dean - Engineering", employeeId: "DEMO-ENGG-DEAN" },
+  "nonengg.dean@demo.local": { name: "Prof. Sameer Non-Engineering Dean", password: "demo123", role: "dean", school: schoolLabel("SoC"), department: "Non Engineering", designation: "Dean - Non Engineering", employeeId: "DEMO-NENG-DEAN" },
   director:{ name: "Dr. Mehta", password: "dir1", role: "director",  school: schoolLabel("SoEMR"), department: "" },
+  "engg.director@demo.local": { name: "Dr. Manish Engineering Director", password: "demo123", role: "director", school: schoolLabel("SoEMR"), department: "", designation: "Director", employeeId: "DEMO-ENGG-DIR" },
+  "nonengg.director@demo.local": { name: "Dr. Ritu Commerce Director", password: "demo123", role: "director", school: schoolLabel("SoC"), department: "", designation: "Director", employeeId: "DEMO-NENG-DIR" },
   vc:      { name: "Prof. Anil Deshmukh", password: "vc1", role: "vc",        school: "University", department: "Management" },
+  "vc@demo.local": { name: "Prof. Anil Deshmukh", password: "demo123", role: "vc", school: "University", department: "Management", designation: "Vice Chancellor", employeeId: "DEMO-VC" },
   registrar: { name: "Dr. Test Registrar", password: "reg1", role: "registrar", school: "", department: "Office of the Registrar" },
+  "registrar@demo.local": { name: "Dr. Test Registrar", password: "demo123", role: "registrar", school: "", department: "Office of the Registrar", designation: "Registrar", employeeId: "DEMO-REG" },
   reportingofficer: { name: "Mr. Test Reporting Officer", password: "ro1", role: "reporting_officer", school: "", department: "Administration" },
+  "reporting.officer@demo.local": { name: "Mr. Test Reporting Officer", password: "demo123", role: "reporting_officer", school: "", department: "Administration", designation: "Reporting Officer", employeeId: "DEMO-RO" },
   staff: { name: "Ms. Test Staff", password: "staff1", role: "non_teaching_staff", school: "", department: "Administration" },
+  "nonteaching.staff@demo.local": { name: "Ms. Kavya Admin", password: "demo123", role: "non_teaching_staff", school: "", department: "Administration", designation: "Office Assistant", employeeId: "DEMO-NT-001" },
+  nonteachingstaff: { name: "Ms. Kavya Admin", password: "demo123", role: "non_teaching_staff", school: "", department: "Administration", designation: "Office Assistant", employeeId: "DEMO-NT-001" },
 };
 
 export const FACULTY_LIST = [

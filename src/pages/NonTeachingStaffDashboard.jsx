@@ -198,7 +198,7 @@ function DocCell({ id, docs, setDocs, readOnly = false }) {
       {files.length === 0 && readOnly && <span style={{ color: "#94a3b8", fontSize: 10 }}>No documents</span>}
       {files.map((file, index) => (
         <div key={`${file.url || file.name}-${index}`} style={{ display: "flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 5, padding: "4px 7px" }}>
-          <a href={file.url} target="_blank" rel="noreferrer" style={{ minWidth: 0, flex: 1, color: ACCENT, fontSize: 10, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={file.name}>
+          <a href={file.previewUrl || file.url} target="_blank" rel="noreferrer" style={{ minWidth: 0, flex: 1, color: ACCENT, fontSize: 10, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={file.name}>
             {file.name || "Document"}
           </a>
           {!readOnly && (

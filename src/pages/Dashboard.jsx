@@ -4,7 +4,7 @@ import { ACR_DETAIL_POINTS, APP_INFO } from "../constants/formConfig";
 import { supabase } from "../services/supabase";
 import { saveAppraisalDraftSection } from "../services/appraisalPersistence";
 import { clampScore, effectiveMaxScore, clearDraft, draftKeyFor, feedbackAverage, feedbackRowScore, feedbackSectionScore, isValidDDMMYYYY, loadDraft, maskDateDDMMYYYY, saveDraft, scoreRemaining, sumSectionScore, validateCompleteRows } from "../utils/appraisalFormUtils";
-import { uploadToCloudinary } from "../services/cloudinary";
+import { cloudinaryDocumentViewUrl, cloudinaryOriginalPdfUrl, uploadToCloudinary } from "../services/cloudinary";
 import {
   getReviewChain,
   isRejectedStatus,
@@ -29,17 +29,19 @@ const docRowFromKey = (docKey) => {
 };
 const docsToRows = (docs, facultyEmail, academicYear) =>
   Object.entries(docs).flatMap(([docKey, files]) =>
-    (files || []).map((file) => ({
-      faculty_email: facultyEmail,
-      academic_year: academicYear,
-      section: docSectionFromKey(docKey),
-      row_no: docRowFromKey(docKey),
-      doc_key: docKey,
-      file_name: file.name,
-      file_type: file.type,
-      file_url: file.url,
-      storage_path: file.publicId || null,
-    }))
+    (files || [])
+      .filter((file) => file?.url && !String(file.url).startsWith("blob:"))
+      .map((file) => ({
+        faculty_email: facultyEmail,
+        academic_year: academicYear,
+        section: docSectionFromKey(docKey),
+        row_no: docRowFromKey(docKey),
+        doc_key: docKey,
+        file_name: file.name,
+        file_type: file.type,
+        file_url: cloudinaryOriginalPdfUrl(file.originalUrl || file.url),
+        storage_path: file.publicId || null,
+      }))
   );
 const dbText = (value) => {
   const text = String(value ?? "").trim();
@@ -286,9 +288,9 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           {f.type?.startsWith("image/") && (
-            <img src={f.url} alt="" style={{ width: 22, height: 22, objectFit: "cover", borderRadius: 3 }} />
+            <img src={f.previewUrl || f.url} alt="" style={{ width: 22, height: 22, objectFit: "cover", borderRadius: 3 }} />
           )}
           View {f.name.length > 14 ? f.name.slice(0, 14) + "..." : f.name}
         </a>
@@ -332,7 +334,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+        <a key={i} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }}
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}
         >
@@ -1373,7 +1375,7 @@ export default function HODDashboard() {
           {
             name: row.file_name,
             type: row.file_type,
-            url: row.file_url,
+            url: cloudinaryOriginalPdfUrl(row.file_url),
             publicId: row.storage_path,
           },
         ];

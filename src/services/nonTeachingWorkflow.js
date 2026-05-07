@@ -5,7 +5,7 @@ import {
   normalizeNonTeachingRole,
 } from "../constants/nonTeachingHierarchy";
 import { profileFromsessionStorage } from "../utils/hierarchy";
-import { clampScore } from "../utils/appraisalFormUtils";
+import { clampScore, stripTransientDocUrls } from "../utils/appraisalFormUtils";
 import { supabase } from "./supabase";
 
 export const NON_TEACHING_STATUS = {
@@ -379,6 +379,7 @@ export const loadNonTeachingAppraisal = async ({
 
 const rowPayloadForForm = ({ form, status }) => {
   const normalizedForm = normalizeNonTeachingForm({ ...form, status });
+  normalizedForm.docs = stripTransientDocUrls(normalizedForm.docs);
   return {
     payload: normalizedForm,
     status,

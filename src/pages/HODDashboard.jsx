@@ -149,7 +149,7 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} href={f.previewUrl || f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           👁 {f.name.length > 14 ? f.name.slice(0, 14) + "…" : f.name}
         </a>
       ))}
@@ -192,7 +192,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+        <a key={i} href={f.previewUrl || f.url} target="_blank" rel="noreferrer"
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}
         >
@@ -822,7 +822,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, reviewerLabel = "HOD"
                 <td style={TD}><RO val={r.usage} /></td>
                 <td style={TDV}><ViewDocsCell docKey={`prod-${i}`} docs={docs} /></td>
                 <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HODInput val={get("products", i, "hod")} onChange={v => set("products", i, "hod", v)} /></td>
+                <td style={TDS_HOD}><HodInput val={get("products", i, "hod")} onChange={v => set("products", i, "hod", v)} /></td>
               </tr>
             ))}
           </tbody>

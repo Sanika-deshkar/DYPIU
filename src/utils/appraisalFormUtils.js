@@ -118,6 +118,14 @@ export const normalizeSingleFileDocs = (docs = {}) =>
     ]),
   );
 
+export const stripTransientDocUrls = (docs = {}) =>
+  Object.fromEntries(
+    Object.entries(docs || {}).map(([key, files]) => [
+      key,
+      (Array.isArray(files) ? files : []).map(({ previewUrl, ...file }) => file),
+    ]),
+  );
+
 export const scoreSummaryText = (earned, maxScore) => ({
   earned: clampScore(earned, maxScore),
   max: toNumber(maxScore),
@@ -131,7 +139,12 @@ export const loadDraft = (key) => {
   if (!key) return null;
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed
+      ? JSON.parse(JSON.stringify(parsed, (field, value) =>
+          field === "previewUrl" ? undefined : value
+        ))
+      : null;
   } catch {
     return null;
   }
@@ -139,8 +152,11 @@ export const loadDraft = (key) => {
 
 export const saveDraft = (key, payload) => {
   if (!key) return;
+  const withoutTransientUrls = JSON.parse(JSON.stringify(payload, (field, value) =>
+    field === "previewUrl" ? undefined : value
+  ));
   localStorage.setItem(key, JSON.stringify({
-    ...payload,
+    ...withoutTransientUrls,
     savedAt: new Date().toISOString(),
   }));
 };

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ACR_DETAIL_POINTS, SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { DIRECTOR_USER, HOD_LIST, FACULTY_LIST, DIRECTOR_SELF_DATA } from "../data/mockData";
 import { loadAppraisalDocuments, loadSavedAppraisal, saveAppraisal, saveAppraisalDraftSection } from "../services/appraisalPersistence";
-import { uploadToCloudinary } from "../services/cloudinary";
+import { cloudinaryDocumentViewUrl, uploadToCloudinary } from "../services/cloudinary";
 import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
 import { supabase } from "../services/supabase";
 import { clampScore, effectiveMaxScore, clearDraft, draftKeyFor, feedbackAverage, feedbackRowScore, feedbackSectionScore, isValidDDMMYYYY, loadDraft, maskDateDDMMYYYY, saveDraft, scoreRemaining, sumSectionScore, validateCompleteRows } from "../utils/appraisalFormUtils";
@@ -134,7 +134,7 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={f.url} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           👁 {f.name.length > 12 ? f.name.slice(0, 12) + "…" : f.name}
         </a>
       ))}
@@ -189,7 +189,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+        <a key={i} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }}
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#0ea5e9", fontSize: 10, textDecoration: "none", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}>
           📄 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
