@@ -13,7 +13,7 @@ import {
 } from "../constants/universityHierarchy";
 import { isNonTeachingRole } from "../constants/nonTeachingHierarchy";
 import { supabase } from "../services/supabase";
-import { buildProfilePayload, normalizeRole, storeUserSession } from "../auth/session";
+import { buildProfilePayload, normalizeRole } from "../auth/session";
 
 const BASE_ROLE_OPTIONS = [
   { value: "faculty", label: "Faculty" },
@@ -194,6 +194,7 @@ export default function Signup() {
         email: cleanFormData.email.trim(),
         password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/login`,
           data: {
             name: cleanFormData.name,
             role: cleanFormData.role,
@@ -211,22 +212,22 @@ export default function Signup() {
       if (authError) throw authError;
 
       const profilePayload = buildProfilePayload(cleanFormData, APP_INFO.DEFAULT_AY);
-      const { data: profile, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from("faculty_profiles")
-        .upsert(profilePayload, { onConflict: "email" })
-        .select()
-        .single();
+        .upsert(profilePayload, { onConflict: "email" });
 
       if (profileError) throw profileError;
 
-      storeUserSession({
-        session: data?.session,
-        user: data?.user,
-        profile,
-        fallbackEmail: cleanFormData.email,
-      });
+      if (data?.session) {
+        await supabase.auth.signOut();
+      }
 
-      navigate("/profile");
+      navigate("/login", {
+        replace: true,
+        state: {
+          message: "Account created. Please confirm your email, then log in.",
+        },
+      });
 
     } catch (err) {
       console.error("Signup error:", err);

@@ -45,7 +45,7 @@ create table public.faculty_profiles (
       'SoEMR — School of Engineering Management & Research',
       'SoC — School of Commerce & Management',
       'SoMCS — School of Media & Communication Studies',
-      'CioD — School of Design',
+      'SoD — School of Design',
       'SoAA — School of Applied Arts',
       'CISR — Center for Interdisciplinary Studies and Research'
     )

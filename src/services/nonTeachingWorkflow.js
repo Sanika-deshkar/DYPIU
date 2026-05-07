@@ -203,7 +203,7 @@ const ratingForAuthority = (section = {}, index, authority) => {
 export const calculateNonTeachingTotals = (form = {}, authority = "self") => {
   const normalized = normalizeNonTeachingForm(form);
   const partA = SELF_ITEMS.reduce((total, item) => total + n(valueForAuthority(normalized[item.key], authority)), 0);
-  const partB = RATING_SECTIONS.reduce((sectionTotal, section) => {
+  const partB = authority === "self" ? 0 : RATING_SECTIONS.reduce((sectionTotal, section) => {
     const rows = normalized.partB?.[section.key] || {};
     return sectionTotal + section.params.reduce((total, _label, index) => total + n(ratingForAuthority(rows, index, authority)), 0);
   }, 0);
@@ -262,7 +262,7 @@ const validateMarks = (form, authority) => {
 export const validateNonTeachingForm = (form, authority = "self", requireRatings = false) => {
   validateMarks(form, authority);
 
-  if (!requireRatings) return;
+  if (!requireRatings || authority === "self") return;
 
   for (const section of RATING_SECTIONS) {
     for (let index = 0; index < section.params.length; index += 1) {
@@ -272,6 +272,18 @@ export const validateNonTeachingForm = (form, authority = "self", requireRatings
       }
     }
   }
+};
+
+const stripSelfPartBRatings = (form) => {
+  const nextForm = normalizeNonTeachingForm(form);
+  RATING_SECTIONS.forEach((section) => {
+    const rows = nextForm.partB?.[section.key] || {};
+    section.params.forEach((_label, index) => {
+      delete rows[`p${index}_self`];
+    });
+    nextForm.partB[section.key] = rows;
+  });
+  return nextForm;
 };
 
 export const loadNonTeachingAppraisal = async ({
@@ -320,7 +332,7 @@ export const submitNonTeachingSelfAppraisal = async ({
 } = {}) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
   const status = statusAfterSelfSubmit(normalizedRole);
-  const finalForm = normalizeNonTeachingForm({ ...form, status, submittedByRole: normalizedRole }, profile, normalizedRole);
+  const finalForm = stripSelfPartBRatings(normalizeNonTeachingForm({ ...form, status, submittedByRole: normalizedRole }, profile, normalizedRole));
 
   validateNonTeachingForm(finalForm, "self", false);
 
@@ -442,19 +454,13 @@ export const primeFormForReviewer = (form = {}, reviewerRole) => {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
   const nextForm = normalizeNonTeachingForm(form);
 
-  const partAFallbacks = role === "vc"
-    ? ["vcMarks", "regMarks", "roMarks", "marks"]
-    : role === "registrar"
-      ? ["regMarks", "roMarks", "marks"]
-      : ["roMarks", "marks"];
   const partBTarget = role === "vc" ? "vc" : role === "registrar" ? "reg" : "ro";
-  const partBFallbacks = role === "vc" ? ["vc", "reg", "ro"] : role === "registrar" ? ["reg", "ro"] : ["ro"];
 
   SELF_ITEMS.forEach(({ key }) => {
     const item = nextForm[key] || {};
     const targetKey = role === "vc" ? "vcMarks" : role === "registrar" ? "regMarks" : "roMarks";
     if (!clean(item[targetKey])) {
-      item[targetKey] = partAFallbacks.map((field) => item[field]).find((value) => clean(value)) || "";
+      item[targetKey] = "";
     }
     nextForm[key] = item;
   });
@@ -464,9 +470,7 @@ export const primeFormForReviewer = (form = {}, reviewerRole) => {
     section.params.forEach((_label, index) => {
       const targetKey = `p${index}_${partBTarget}`;
       if (!clean(rows[targetKey])) {
-        rows[targetKey] = partBFallbacks
-          .map((suffix) => rows[`p${index}_${suffix}`])
-          .find((value) => clean(value)) || "";
+        rows[targetKey] = "";
       }
     });
     nextForm.partB[section.key] = rows;
@@ -552,6 +556,8 @@ export const openNonTeachingReport = ({
   item = {},
   form = item.form,
   generatedBy = localStorage.getItem("name") || "Authority",
+  visibleRoles = ["self", "ro", "registrar", "vc"],
+  includePartB = true,
 } = {}) => {
   const reportForm = normalizeNonTeachingForm(form || item.form, item, item.appraisalRole);
   const totals = {
@@ -559,6 +565,47 @@ export const openNonTeachingReport = ({
     ro: calculateNonTeachingTotals(reportForm, "reporting_officer"),
     registrar: calculateNonTeachingTotals(reportForm, "registrar"),
     vc: calculateNonTeachingTotals(reportForm, "vc"),
+  };
+  const normalizeReportRole = (role) => ({
+    reporting_officer: "ro",
+    reg: "registrar",
+  }[role] || role);
+  const reportRoles = Array.from(new Set(["self", ...(visibleRoles || []).map(normalizeReportRole)]))
+    .filter((role) => ["self", "ro", "registrar", "vc"].includes(role));
+  const partBRoles = reportRoles.filter((role) => role !== "self");
+  const maxForRole = (role) => role === "self" ? NON_TEACHING_MAX.partA : NON_TEACHING_MAX.grand;
+  const reportColumns = {
+    self: {
+      label: "Self",
+      total: totals.self.total,
+      partA: (key) => reportForm[key]?.marks,
+      remarks: reportForm.remarks,
+      remarksLabel: "Staff",
+    },
+    ro: {
+      label: "RO",
+      total: totals.ro.total,
+      partA: (key) => reportForm[key]?.roMarks,
+      partB: (row, index) => row[`p${index}_ro`],
+      remarks: reportForm.roRemarks,
+      remarksLabel: "Reporting Officer",
+    },
+    registrar: {
+      label: "Registrar",
+      total: totals.registrar.total,
+      partA: (key) => reportForm[key]?.regMarks,
+      partB: (row, index) => row[`p${index}_reg`],
+      remarks: reportForm.registrarRemarks,
+      remarksLabel: "Registrar",
+    },
+    vc: {
+      label: "VC",
+      total: totals.vc.total,
+      partA: (key) => reportForm[key]?.vcMarks,
+      partB: (row, index) => row[`p${index}_vc`],
+      remarks: reportForm.vcRemarks,
+      remarksLabel: "VC",
+    },
   };
   const docsFor = (key) => (reportForm.docs?.[key] || [])
     .map((file) => `<a href="${escapeHtml(file.url)}" target="_blank">${escapeHtml(file.name || file.url)}</a>`)
@@ -570,10 +617,7 @@ export const openNonTeachingReport = ({
       <td>${escapeHtml(reportForm[key]?.text)}</td>
       <td>${docsFor(key)}</td>
       <td>${max}</td>
-      <td>${escapeHtml(reportForm[key]?.marks)}</td>
-      <td>${escapeHtml(reportForm[key]?.roMarks)}</td>
-      <td>${escapeHtml(reportForm[key]?.regMarks)}</td>
-      <td>${escapeHtml(reportForm[key]?.vcMarks)}</td>
+      ${reportRoles.map((role) => `<td>${escapeHtml(reportColumns[role].partA(key))}</td>`).join("")}
     </tr>
   `).join("");
 
@@ -581,17 +625,14 @@ export const openNonTeachingReport = ({
     <h3>${escapeHtml(section.title)} (Max ${section.max})</h3>
     <table>
       <thead>
-        <tr><th>Parameter</th><th>Self</th><th>RO</th><th>Registrar</th><th>VC</th></tr>
+        <tr><th>Parameter</th>${partBRoles.map((role) => `<th>${escapeHtml(reportColumns[role].label)}</th>`).join("")}</tr>
       </thead>
       <tbody>
         ${section.params.map((param, index) => {
           const row = reportForm.partB?.[section.key] || {};
           return `<tr>
             <td>${escapeHtml(param)}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_self`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_ro`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_reg`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_vc`]))}</td>
+            ${partBRoles.map((role) => `<td>${escapeHtml(ratingLabel(reportColumns[role].partB(row, index)))}</td>`).join("")}
           </tr>`;
         }).join("")}
       </tbody>
@@ -639,33 +680,24 @@ export const openNonTeachingReport = ({
           ].map(([label, value]) => `<div class="box"><div class="label">${label}</div><div>${escapeHtml(value)}</div></div>`).join("")}
         </div>
 
-        <div class="totals">
-          ${[
-            ["Self Claimed", totals.self.total],
-            ["Reporting Officer", totals.ro.total],
-            ["Registrar", totals.registrar.total],
-            ["VC Final", totals.vc.total],
-          ].map(([label, value]) => `<div class="total"><div class="label">${label}</div><div class="score">${value.toFixed(1)} / ${NON_TEACHING_MAX.grand}</div></div>`).join("")}
+        <div class="totals" style="grid-template-columns: repeat(${reportRoles.length}, 1fr);">
+          ${reportRoles.map((role) => `<div class="total"><div class="label">${escapeHtml(reportColumns[role].remarksLabel)}</div><div class="score">${reportColumns[role].total.toFixed(1)} / ${maxForRole(role)}</div></div>`).join("")}
         </div>
 
         <h2>Part A - Self Appraisal</h2>
         <table>
           <thead>
-            <tr><th>Particular</th><th>Description</th><th>Documents</th><th>Max</th><th>Self</th><th>RO</th><th>Registrar</th><th>VC</th></tr>
+            <tr><th>Particular</th><th>Description</th><th>Documents</th><th>Max</th>${reportRoles.map((role) => `<th>${escapeHtml(reportColumns[role].label)}</th>`).join("")}</tr>
           </thead>
           <tbody>${partARows}</tbody>
         </table>
 
-        <h2>Part B - Authority Ratings</h2>
-        ${partBRows}
+        ${includePartB && partBRoles.length ? `<h2>Part B - Authority Ratings</h2>${partBRows}` : ""}
 
         <h2>Remarks</h2>
         <table>
           <tbody>
-            <tr><th>Staff</th><td>${escapeHtml(reportForm.remarks)}</td></tr>
-            <tr><th>Reporting Officer</th><td>${escapeHtml(reportForm.roRemarks)}</td></tr>
-            <tr><th>Registrar</th><td>${escapeHtml(reportForm.registrarRemarks)}</td></tr>
-            <tr><th>VC</th><td>${escapeHtml(reportForm.vcRemarks)}</td></tr>
+            ${reportRoles.map((role) => `<tr><th>${escapeHtml(reportColumns[role].remarksLabel)}</th><td>${escapeHtml(reportColumns[role].remarks)}</td></tr>`).join("")}
           </tbody>
         </table>
         <div class="muted">Generated by ${escapeHtml(generatedBy)} on ${new Date().toLocaleString()}</div>

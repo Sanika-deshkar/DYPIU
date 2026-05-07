@@ -222,7 +222,7 @@ const buildHodSectionScores = (faculty, hodData) => {
 };
 
 // ─── Faculty Form in HOD Review Mode ─────────────────────────────────────────
-function FacultyReviewForm({ faculty, hodData, setHodData }) {
+function FacultyReviewForm({ faculty, hodData, setHodData, reviewerLabel = "HOD" }) {
   const set = (section, idx, field, val) => {
     setHodData(prev => {
       const updated = { ...prev };
@@ -257,6 +257,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
   const courseFileRow = Array.isArray(courseFile) ? (courseFile[0] || {}) : (courseFile || {});
 
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
+  const reviewerScoreLabel = `${reviewerLabel} Score`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -264,7 +265,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       <div style={{ background: "linear-gradient(90deg,#312e81,#4338ca)", color: "#e0e7ff", borderRadius: 8, padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
         <span style={{ fontSize: 18 }}>🔍</span>
         <div>
-          <strong>HOD Review Mode</strong> — Faculty data is read-only. Only <span style={{ color: "#c7d2fe", fontWeight: 700 }}>HOD Score</span> columns are editable. Click <span style={{ color: "#c7d2fe" }}>📄 View Doc</span> links to open uploaded files.
+          <strong>{reviewerLabel} Review Mode</strong> — Faculty self-scores are read-only. Only <span style={{ color: "#c7d2fe", fontWeight: 700 }}>{reviewerScoreLabel}</span> columns are editable. Click <span style={{ color: "#c7d2fe" }}>📄 View Doc</span> links to open uploaded files.
         </div>
       </div>
 
@@ -293,7 +294,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
               <th style={TH}>SN</th><th style={TH}>Semester</th><th style={TH}>Course Code / Name</th>
               <th style={TH}>Planned</th><th style={TH}>Conducted</th>
               <th style={TH}>View Docs</th>
-              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
             </tr></thead>
             <tbody>
               {rows(lectures).map((r, i) => (
@@ -318,7 +319,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             <tr>
@@ -337,7 +338,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       <SC title="A3. Innovative Teaching-Learning (Max 10)" accent="#8b5cf6">
         <table style={T}>
           <thead><tr>
-            <th style={TH}>Method</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>Method</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             <tr>
@@ -354,7 +355,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Project Type</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(projects).map((r, i) => (
@@ -375,7 +376,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Description</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(quals).map((r, i) => (
@@ -397,7 +398,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>Feedback 1</th>
             <th style={TH}>Feedback 2</th><th style={TH}>Average</th>
-            <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(feedback).map((r, i) => (
@@ -422,7 +423,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(deptActs).map((r, i) => (
@@ -444,7 +445,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(uniActs).map((r, i) => (
@@ -466,7 +467,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(society).map((r, i) => (
@@ -488,7 +489,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Industry Name</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(industry).map((r, i) => (
@@ -507,10 +508,10 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
 
       {/* G: ACR */}
       <SC title="G. Annual Confidential Report (Max 25)" accent="#ef4444">
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>⚠️ ACR is assessed by HOD only — faculty does not fill scores.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>ACR is assessed by {reviewerLabel} only - faculty does not fill scores.</div>
         <table style={T}>
           <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Parameter</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>SN</th><th style={TH}>Parameter</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(acr).map((r, i) => (
@@ -534,7 +535,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Journal</th>
               <th style={TH}>ISSN</th><th style={TH}>Indexing</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
             </tr></thead>
             <tbody>
               {rows(journals).map((r, i) => (
@@ -561,7 +562,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Book & Publisher</th>
               <th style={TH}>ISBN</th><th style={TH}>First Author?</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
             </tr></thead>
             <tbody>
               {rows(books).map((r, i) => (
@@ -586,7 +587,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th><th style={TH}>Quadrants</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(ict).map((r, i) => (
@@ -609,7 +610,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Degree</th><th style={TH}>Student Name</th><th style={TH}>Status</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(research).map((r, i) => (
@@ -633,7 +634,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Agency</th>
               <th style={TH}>Sanction Date</th><th style={TH}>Amount</th><th style={TH}>Role</th><th style={TH}>Status</th>
-              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
             </tr></thead>
             <tbody>
               {rows(faculty.projects2).map((r, i) => (
@@ -661,7 +662,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th>
               <th style={TH}>Filed</th><th style={TH}>Status</th><th style={TH}>File No.</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
             </tr></thead>
             <tbody>
               {rows(patents).map((r, i) => (
@@ -688,7 +689,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Award Title</th><th style={TH}>Date</th>
             <th style={TH}>Agency</th><th style={TH}>Level</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(awards).map((r, i) => (
@@ -713,7 +714,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Title / Session</th><th style={TH}>Type</th>
             <th style={TH}>Organizer</th><th style={TH}>Level</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(confs).map((r, i) => (
@@ -738,7 +739,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Duration</th>
             <th style={TH}>Funding Agency</th><th style={TH}>Amount</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(proposals).map((r, i) => (
@@ -763,7 +764,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Program</th><th style={TH}>Duration</th><th style={TH}>Organizer</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(fdps).map((r, i) => (
@@ -783,7 +784,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Company</th><th style={TH}>Duration</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>{reviewerScoreLabel}</th>
           </tr></thead>
           <tbody>
             {rows(training).map((r, i) => (
@@ -894,7 +895,7 @@ function ReviewPanel({ faculty, onBack, onSubmit, readOnly = false, reviewerLabe
 
       {tab === "form" && (
         <fieldset disabled={reviewLocked} style={{ border: "none", padding: 0, margin: 0 }}>
-          <FacultyReviewForm faculty={faculty} hodData={hodData} setHodData={setHodData} />
+          <FacultyReviewForm faculty={faculty} hodData={hodData} setHodData={setHodData} reviewerLabel={reviewerLabel} />
         </fieldset>
       )}
 

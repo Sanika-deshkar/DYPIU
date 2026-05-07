@@ -329,111 +329,25 @@ function SelfAppraisalTable({ form, setForm, readOnly, accent }) {
   );
 }
 
-function RatingRubric({ form, setForm, readOnly = false, accent = ACCENT }) {
-  const editable = typeof setForm === "function";
-  const setSelfRating = (sectionKey, index, value) => {
-    if (!editable || readOnly) return;
-    setForm((current) => ({
-      ...current,
-      partB: {
-        ...(current.partB || {}),
-        [sectionKey]: {
-          ...(current.partB?.[sectionKey] || {}),
-          [`p${index}_self`]: value,
-        },
-      },
-    }));
-  };
-
-  return (
-    <>
-      <SectionCard title="Rating Scale" accent="#0f172a">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {RATING_SCALE.map((rating) => (
-            <div key={rating.value} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 6, background: rating.bg, color: rating.color, border: `1px solid ${rating.color}35`, fontSize: 11, fontWeight: 800 }}>
-              <span>{rating.value}</span>
-              <span>{rating.label}</span>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {RATING_SECTIONS.map((section) => (
-        <SectionCard
-          key={section.key}
-          title={`${section.title} (Max ${section.max})`}
-          subtitle={editable ? "Select one rating for each parameter." : undefined}
-          accent={section.accent}
-        >
-          <div style={{ overflowX: "auto" }}>
-            <table style={T}>
-              <thead>
-                <tr>
-                  <th style={TH}>SN</th>
-                  <th style={{ ...TH, textAlign: "left" }}>Parameter</th>
-                  {editable && <th style={TH}>Self Rating</th>}
-                  <th style={TH}>Reporting Officer</th>
-                  <th style={TH}>Registrar</th>
-                  <th style={TH}>VC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.params.map((param, index) => {
-                  const row = form.partB?.[section.key] || {};
-                  return (
-                    <tr key={param} style={index % 2 ? { background: "#f8fafc" } : undefined}>
-                      <td style={TDC}>{index + 1}</td>
-                      <td style={TD}>{param}</td>
-                      {editable && (
-                        <td style={TDC}>
-                          <RatingPicker
-                            value={row[`p${index}_self`]}
-                            readOnly={readOnly}
-                            onChange={(value) => setSelfRating(section.key, index, value)}
-                          />
-                        </td>
-                      )}
-                      <td style={TDC}>{row[`p${index}_ro`] || "-"}</td>
-                      <td style={TDC}>{row[`p${index}_reg`] || "-"}</td>
-                      <td style={TDC}>{row[`p${index}_vc`] || "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-      ))}
-    </>
-  );
-}
-
-function SummaryPanel({ form, role, onSubmit, onReport, submitting, locked, confirmed, setConfirmed, accent }) {
+function SummaryPanel({ form, role, onSubmit, onUpdateRemarks, onReport, submitting, locked, confirmed, setConfirmed, accent }) {
   const self = calculateNonTeachingTotals(form, "self");
-  const ro = calculateNonTeachingTotals(form, "reporting_officer");
-  const registrar = calculateNonTeachingTotals(form, "registrar");
-  const vc = calculateNonTeachingTotals(form, "vc");
-  const finalScore = vc.total || registrar.total || ro.total || self.total;
+  const selfMax = NON_TEACHING_MAX.partA;
+  const scoreCards = [["Self Claimed", self.total, ACCENT]];
 
   return (
-    <SectionCard title={`Summary of Total Score (Max ${NON_TEACHING_MAX.grand})`} accent="#059669">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
-        {[
-          ["Self Claimed", self.total, ACCENT],
-          ["Reporting Officer", ro.total, "#0891b2"],
-          ["Registrar", registrar.total, REG_ACCENT],
-          ["VC Final", vc.total, VC_ACCENT],
-        ].map(([label, value, color]) => (
+    <SectionCard title={`Summary of Total Score (Max ${selfMax})`} accent="#059669">
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${scoreCards.length}, minmax(0, 1fr))`, gap: 10, marginBottom: 14 }}>
+        {scoreCards.map(([label, value, color]) => (
           <div key={label} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", background: "#f8fafc" }}>
             <div style={{ color: "#64748b", fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{label}</div>
-            <div style={{ color, fontSize: 18, fontWeight: 900, margin: "4px 0" }}>{n(value).toFixed(1)} / {NON_TEACHING_MAX.grand}</div>
-            <ScoreBar score={value} max={NON_TEACHING_MAX.grand} color={color} />
+            <div style={{ color, fontSize: 18, fontWeight: 900, margin: "4px 0" }}>{n(value).toFixed(1)} / {selfMax}</div>
+            <ScoreBar score={value} max={selfMax} color={color} />
           </div>
         ))}
       </div>
 
       <div style={{ marginBottom: 14, padding: "10px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, color: "#1e3a8a", fontSize: 12, lineHeight: 1.6 }}>
-        Current visible score: <strong>{finalScore.toFixed(1)} / {NON_TEACHING_MAX.grand}</strong>
+        Current visible score: <strong>{self.total.toFixed(1)} / {selfMax}</strong>
       </div>
 
       <label style={{ fontSize: 12, color: "#334155", fontWeight: 800, display: "block", marginBottom: 6 }}>Remarks</label>
@@ -442,7 +356,7 @@ function SummaryPanel({ form, role, onSubmit, onReport, submitting, locked, conf
         readOnly={locked}
         rows={3}
         placeholder="Optional remarks for the next authority..."
-        onChange={(value) => onSubmit.updateRemarks(value)}
+        onChange={onUpdateRemarks}
       />
 
       {!locked && (
@@ -515,7 +429,7 @@ export function NonTeachingAppraisalForm({ role = localStorage.getItem("role"), 
       return;
     }
     try {
-      validateNonTeachingForm(form, "self", true);
+      validateNonTeachingForm(form, "self", false);
     } catch (err) {
       alert(err.message);
       return;
@@ -539,8 +453,6 @@ export function NonTeachingAppraisalForm({ role = localStorage.getItem("role"), 
       setSubmitting(false);
     }
   };
-  handleSubmit.updateRemarks = updateRemarks;
-
   const handleReport = () => {
     openNonTeachingReport({
       item: {
@@ -553,6 +465,8 @@ export function NonTeachingAppraisalForm({ role = localStorage.getItem("role"), 
         academicYear: form.info?.ay,
       },
       form,
+      visibleRoles: ["self"],
+      includePartB: false,
     });
   };
 
@@ -579,7 +493,6 @@ export function NonTeachingAppraisalForm({ role = localStorage.getItem("role"), 
             {[
               ["info", "General Information"],
               ["partA", "Part A"],
-              ["partB", "Part B Rubric"],
               ["summary", "Summary"],
             ].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ border: "none", borderRadius: 7, padding: "8px 16px", background: tab === id ? accent : "#e2e8f0", color: tab === id ? "#fff" : "#475569", fontFamily: "Georgia, serif", fontWeight: 800, cursor: "pointer", fontSize: 12 }}>
@@ -609,12 +522,12 @@ export function NonTeachingAppraisalForm({ role = localStorage.getItem("role"), 
           )}
 
           {tab === "partA" && <SelfAppraisalTable form={form} setForm={setForm} readOnly={locked} accent={accent} />}
-          {tab === "partB" && <RatingRubric form={form} setForm={setForm} readOnly={locked} accent={accent} />}
           {tab === "summary" && (
             <SummaryPanel
               form={form}
               role={normalizedRole}
               onSubmit={handleSubmit}
+              onUpdateRemarks={updateRemarks}
               onReport={handleReport}
               submitting={submitting}
               locked={locked}
@@ -657,6 +570,9 @@ function AuthorityPartA({ form, setForm, reviewerRole, readOnly }) {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
   const editableKey = role === "vc" ? "vcMarks" : role === "registrar" ? "regMarks" : "roMarks";
   const accent = roleAccent(role);
+  const showReportingOfficer = role === "reporting_officer" || role === "vc";
+  const showRegistrar = role === "registrar" || role === "vc";
+  const showVc = role === "vc";
   const setMark = (key, value) => {
     setForm((current) => ({
       ...current,
@@ -674,9 +590,9 @@ function AuthorityPartA({ form, setForm, reviewerRole, readOnly }) {
               <th style={{ ...TH, textAlign: "left" }}>Staff Description</th>
               <th style={TH}>Docs</th>
               <th style={TH}>Self</th>
-              <th style={TH}>RO</th>
-              <th style={TH}>Registrar</th>
-              <th style={TH}>VC</th>
+              {showReportingOfficer && <th style={TH}>RO</th>}
+              {showRegistrar && <th style={TH}>Registrar</th>}
+              {showVc && <th style={TH}>VC</th>}
             </tr>
           </thead>
           <tbody>
@@ -686,21 +602,25 @@ function AuthorityPartA({ form, setForm, reviewerRole, readOnly }) {
                 <td style={{ ...TD, minWidth: 260 }}>{form[item.key]?.text || <span style={{ color: "#94a3b8" }}>No description</span>}</td>
                 <td style={{ ...TD, minWidth: 180 }}><DocCell id={item.key} docs={form.docs || {}} readOnly /></td>
                 <td style={TDC}>{form[item.key]?.marks || "-"}</td>
-                <td style={TDC}>
-                  {role === "reporting_officer" ? (
-                    <MarksInput value={form[item.key]?.roMarks} max={item.max} readOnly={readOnly} accent={accent} onChange={(value) => setMark(item.key, value)} />
-                  ) : form[item.key]?.roMarks || "-"}
-                </td>
-                <td style={TDC}>
-                  {role === "registrar" ? (
-                    <MarksInput value={form[item.key]?.regMarks} max={item.max} readOnly={readOnly} accent={accent} onChange={(value) => setMark(item.key, value)} />
-                  ) : form[item.key]?.regMarks || "-"}
-                </td>
-                <td style={TDC}>
-                  {role === "vc" ? (
+                {showReportingOfficer && (
+                  <td style={TDC}>
+                    {role === "reporting_officer" ? (
+                      <MarksInput value={form[item.key]?.roMarks} max={item.max} readOnly={readOnly} accent={accent} onChange={(value) => setMark(item.key, value)} />
+                    ) : form[item.key]?.roMarks || "-"}
+                  </td>
+                )}
+                {showRegistrar && (
+                  <td style={TDC}>
+                    {role === "registrar" ? (
+                      <MarksInput value={form[item.key]?.regMarks} max={item.max} readOnly={readOnly} accent={accent} onChange={(value) => setMark(item.key, value)} />
+                    ) : form[item.key]?.regMarks || "-"}
+                  </td>
+                )}
+                {showVc && (
+                  <td style={TDC}>
                     <MarksInput value={form[item.key]?.vcMarks} max={item.max} readOnly={readOnly} accent={accent} onChange={(value) => setMark(item.key, value)} />
-                  ) : form[item.key]?.vcMarks || "-"}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -713,6 +633,9 @@ function AuthorityPartA({ form, setForm, reviewerRole, readOnly }) {
 function AuthorityPartB({ form, setForm, reviewerRole, readOnly }) {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
   const suffix = role === "vc" ? "vc" : role === "registrar" ? "reg" : "ro";
+  const showReportingOfficer = role === "reporting_officer" || role === "vc";
+  const showRegistrar = role === "registrar" || role === "vc";
+  const showVc = role === "vc";
   const setRating = (sectionKey, index, value) => {
     setForm((current) => ({
       ...current,
@@ -736,10 +659,9 @@ function AuthorityPartB({ form, setForm, reviewerRole, readOnly }) {
                 <tr>
                   <th style={TH}>SN</th>
                   <th style={{ ...TH, textAlign: "left" }}>Parameter</th>
-                  <th style={TH}>Staff Self</th>
-                  <th style={TH}>Reporting Officer</th>
-                  <th style={TH}>Registrar</th>
-                  <th style={TH}>VC</th>
+                  {showReportingOfficer && <th style={TH}>Reporting Officer</th>}
+                  {showRegistrar && <th style={TH}>Registrar</th>}
+                  {showVc && <th style={TH}>VC</th>}
                 </tr>
               </thead>
               <tbody>
@@ -749,22 +671,25 @@ function AuthorityPartB({ form, setForm, reviewerRole, readOnly }) {
                     <tr key={param} style={index % 2 ? { background: "#f8fafc" } : undefined}>
                       <td style={TDC}>{index + 1}</td>
                       <td style={TD}>{param}</td>
-                      <td style={TDC}>{row[`p${index}_self`] || "-"}</td>
-                      <td style={TDC}>
-                        {role === "reporting_officer" ? (
-                          <RatingPicker value={row[`p${index}_ro`]} readOnly={readOnly} onChange={(value) => setRating(section.key, index, value)} />
-                        ) : row[`p${index}_ro`] || "-"}
-                      </td>
-                      <td style={TDC}>
-                        {role === "registrar" ? (
-                          <RatingPicker value={row[`p${index}_reg`]} readOnly={readOnly} onChange={(value) => setRating(section.key, index, value)} />
-                        ) : row[`p${index}_reg`] || "-"}
-                      </td>
-                      <td style={TDC}>
-                        {role === "vc" ? (
+                      {showReportingOfficer && (
+                        <td style={TDC}>
+                          {role === "reporting_officer" ? (
+                            <RatingPicker value={row[`p${index}_ro`]} readOnly={readOnly} onChange={(value) => setRating(section.key, index, value)} />
+                          ) : row[`p${index}_ro`] || "-"}
+                        </td>
+                      )}
+                      {showRegistrar && (
+                        <td style={TDC}>
+                          {role === "registrar" ? (
+                            <RatingPicker value={row[`p${index}_reg`]} readOnly={readOnly} onChange={(value) => setRating(section.key, index, value)} />
+                          ) : row[`p${index}_reg`] || "-"}
+                        </td>
+                      )}
+                      {showVc && (
+                        <td style={TDC}>
                           <RatingPicker value={row[`p${index}_vc`]} readOnly={readOnly} onChange={(value) => setRating(section.key, index, value)} />
-                        ) : row[`p${index}_vc`] || "-"}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -821,6 +746,13 @@ export function NonTeachingAuthorityReviewPanel({ item, reviewerRole, onBack, on
   };
 
   const handleReport = () => {
+    const visibleRoles = role === "vc"
+      ? ["self", "ro", "registrar", "vc"]
+      : role === "registrar"
+        ? ["self", "registrar"]
+        : role === "reporting_officer"
+          ? ["self", "ro"]
+          : ["self"];
     openNonTeachingReport({
       item,
       form: {
@@ -829,6 +761,7 @@ export function NonTeachingAuthorityReviewPanel({ item, reviewerRole, onBack, on
         registrarRemarks: role === "registrar" ? remarks : form.registrarRemarks,
         vcRemarks: role === "vc" ? remarks : form.vcRemarks,
       },
+      visibleRoles,
     });
   };
 
@@ -867,9 +800,8 @@ export function NonTeachingAuthorityReviewPanel({ item, reviewerRole, onBack, on
 
       {tab === "remarks" && (
         <SectionCard title={locked ? "Submitted Review" : `${nonTeachingRoleLabel(role)} Remarks & Submission`} accent={accent}>
-          {form.roRemarks && role !== "reporting_officer" && <PriorRemark label="Reporting Officer Remarks" value={form.roRemarks} color={ACCENT} />}
-          {form.registrarRemarks && role !== "registrar" && <PriorRemark label="Registrar Remarks" value={form.registrarRemarks} color={REG_ACCENT} />}
-          {form.vcRemarks && role !== "vc" && <PriorRemark label="VC Remarks" value={form.vcRemarks} color={VC_ACCENT} />}
+          {role === "vc" && form.roRemarks && <PriorRemark label="Reporting Officer Remarks" value={form.roRemarks} color={ACCENT} />}
+          {role === "vc" && form.registrarRemarks && <PriorRemark label="Registrar Remarks" value={form.registrarRemarks} color={REG_ACCENT} />}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
             {[
@@ -953,7 +885,8 @@ export function NonTeachingReviewDashboard({ reviewerRole, title, subtitle, acce
   };
 
   useEffect(() => {
-    loadQueue();
+    const timer = setTimeout(loadQueue, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewerRole]);
 

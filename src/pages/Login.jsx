@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { APP_INFO } from "../constants/formConfig";
 import { CREDENTIALS } from "../data/mockData";
 import { supabase } from "../services/supabase";
@@ -7,11 +7,12 @@ import { buildProfilePayload, normalizeRole, storeUserSession } from "../auth/se
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState(""); // This will be treated as email for Supabase
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
@@ -36,6 +37,14 @@ export default function Login() {
 
       if (!authError && data?.user) {
         console.log("Supabase login successful:", data.user);
+        const emailConfirmedAt = data.user.email_confirmed_at || data.user.confirmed_at;
+
+        if (!emailConfirmedAt) {
+          await supabase.auth.signOut();
+          localStorage.clear();
+          setError("Please confirm your email before logging in. Check your inbox for the confirmation link.");
+          return;
+        }
 
         const { data: profile, error: profileError } = await supabase
           .from("faculty_profiles")
@@ -89,6 +98,11 @@ export default function Login() {
       }
 
       // 2. Fallback to Mock Data (useful during development/migration)
+      if (authError?.message?.toLowerCase().includes("email not confirmed")) {
+        setError("Please confirm your email before logging in. Check your inbox for the confirmation link.");
+        return;
+      }
+
       console.warn("Supabase auth failed, trying mock fallback...", authError?.message);
       const cred = CREDENTIALS[email];
 
