@@ -94,7 +94,8 @@ export const RATING_SECTIONS = [
 const n = (value) => parseFloat(value) || 0;
 const clean = (value) => String(value ?? "").trim();
 const emailKey = (value) => clean(value).toLowerCase();
-const academicYear = (value) => clean(value) || APP_INFO.DEFAULT_AY || "2025-2026";
+const academicYear = (value) =>
+  clean(value) || APP_INFO.DEFAULT_AY || "2025-2026";
 const nowIso = () => new Date().toISOString();
 
 const requireSupabase = (error, action) => {
@@ -118,10 +119,16 @@ export const nonTeachingRoleLabel = (role) =>
 export const createEmptyPartB = () =>
   Object.fromEntries(RATING_SECTIONS.map((section) => [section.key, {}]));
 
-export const emptyNonTeachingForm = (profile = profileFromsessionStorage(), role = "non_teaching_staff") => {
+export const emptyNonTeachingForm = (
+  profile = profileFromsessionStorage(),
+  role = "non_teaching_staff",
+) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
-  const name = profile.full_name || profile.name || sessionStorage.getItem("name") || "";
-  const email = emailKey(profile.email || sessionStorage.getItem("username") || "");
+  const name =
+    profile.full_name || profile.name || sessionStorage.getItem("name") || "";
+  const email = emailKey(
+    profile.email || sessionStorage.getItem("username") || "",
+  );
 
   return {
     appraisalType: "non-teaching",
@@ -130,11 +137,21 @@ export const emptyNonTeachingForm = (profile = profileFromsessionStorage(), role
     info: {
       name,
       email,
-      employeeId: profile.employee_id || profile.employeeId || sessionStorage.getItem("employeeId") || "",
-      designation: profile.designation || sessionStorage.getItem("designation") || nonTeachingRoleLabel(normalizedRole),
-      department: profile.department || sessionStorage.getItem("department") || "",
+      employeeId:
+        profile.employee_id ||
+        profile.employeeId ||
+        sessionStorage.getItem("employeeId") ||
+        "",
+      designation:
+        profile.designation ||
+        sessionStorage.getItem("designation") ||
+        nonTeachingRoleLabel(normalizedRole),
+      department:
+        profile.department || sessionStorage.getItem("department") || "",
       reportingHead: "",
-      ay: academicYear(profile.academic_year || profile.ay || APP_INFO.DEFAULT_AY),
+      ay: academicYear(
+        profile.academic_year || profile.ay || APP_INFO.DEFAULT_AY,
+      ),
     },
     selfResp: { text: "", marks: "" },
     selfContrib: { text: "", marks: "" },
@@ -148,7 +165,11 @@ export const emptyNonTeachingForm = (profile = profileFromsessionStorage(), role
   };
 };
 
-export const normalizeNonTeachingForm = (payload = {}, profile = {}, role = "non_teaching_staff") => {
+export const normalizeNonTeachingForm = (
+  payload = {},
+  profile = {},
+  role = "non_teaching_staff",
+) => {
   const base = emptyNonTeachingForm(profile, role);
   const form = payload && typeof payload === "object" ? payload : {};
   const merged = {
@@ -166,9 +187,14 @@ export const normalizeNonTeachingForm = (payload = {}, profile = {}, role = "non
   };
 
   merged.status = form.status || base.status;
-  merged.submittedByRole = normalizeNonTeachingRole(form.submittedByRole, normalizeNonTeachingRole(role, role));
+  merged.submittedByRole = normalizeNonTeachingRole(
+    form.submittedByRole,
+    normalizeNonTeachingRole(role, role),
+  );
   merged.info.ay = academicYear(merged.info.ay || profile.academic_year);
-  merged.info.email = emailKey(merged.info.email || profile.email || sessionStorage.getItem("username"));
+  merged.info.email = emailKey(
+    merged.info.email || profile.email || sessionStorage.getItem("username"),
+  );
 
   SELF_ITEMS.forEach(({ key }) => {
     merged[key] = {
@@ -196,17 +222,36 @@ const valueForAuthority = (row = {}, authority) => {
 };
 
 const ratingForAuthority = (section = {}, index, authority) => {
-  const suffix = authority === "reporting_officer" ? "ro" : authority === "registrar" ? "reg" : authority;
+  const suffix =
+    authority === "reporting_officer"
+      ? "ro"
+      : authority === "registrar"
+        ? "reg"
+        : authority;
   return section[`p${index}_${suffix}`];
 };
 
 export const calculateNonTeachingTotals = (form = {}, authority = "self") => {
   const normalized = normalizeNonTeachingForm(form);
-  const partA = SELF_ITEMS.reduce((total, item) => total + n(valueForAuthority(normalized[item.key], authority)), 0);
-  const partB = RATING_SECTIONS.reduce((sectionTotal, section) => {
-    const rows = normalized.partB?.[section.key] || {};
-    return sectionTotal + section.params.reduce((total, _label, index) => total + n(ratingForAuthority(rows, index, authority)), 0);
-  }, 0);
+  const partA = SELF_ITEMS.reduce(
+    (total, item) =>
+      total + n(valueForAuthority(normalized[item.key], authority)),
+    0,
+  );
+  const partB =
+    authority === "self"
+      ? 0
+      : RATING_SECTIONS.reduce((sectionTotal, section) => {
+          const rows = normalized.partB?.[section.key] || {};
+          return (
+            sectionTotal +
+            section.params.reduce(
+              (total, _label, index) =>
+                total + n(ratingForAuthority(rows, index, authority)),
+              0,
+            )
+          );
+        }, 0);
 
   return {
     partA,
@@ -217,22 +262,27 @@ export const calculateNonTeachingTotals = (form = {}, authority = "self") => {
 
 export const statusAfterSelfSubmit = (role) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
-  if (normalizedRole === "registrar") return NON_TEACHING_STATUS.REGISTRAR_REVIEWED;
-  if (normalizedRole === "reporting_officer") return NON_TEACHING_STATUS.RO_REVIEWED;
+  if (normalizedRole === "registrar")
+    return NON_TEACHING_STATUS.REGISTRAR_REVIEWED;
+  if (normalizedRole === "reporting_officer")
+    return NON_TEACHING_STATUS.RO_REVIEWED;
   return NON_TEACHING_STATUS.SUBMITTED;
 };
 
 export const reviewerStatus = (role) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
-  if (normalizedRole === "reporting_officer") return NON_TEACHING_STATUS.RO_REVIEWED;
-  if (normalizedRole === "registrar") return NON_TEACHING_STATUS.REGISTRAR_REVIEWED;
+  if (normalizedRole === "reporting_officer")
+    return NON_TEACHING_STATUS.RO_REVIEWED;
+  if (normalizedRole === "registrar")
+    return NON_TEACHING_STATUS.REGISTRAR_REVIEWED;
   if (normalizedRole === "vc") return NON_TEACHING_STATUS.VC_APPROVED;
   return NON_TEACHING_STATUS.SUBMITTED;
 };
 
 export const expectedPendingStatus = (role) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
-  if (normalizedRole === "reporting_officer") return NON_TEACHING_STATUS.SUBMITTED;
+  if (normalizedRole === "reporting_officer")
+    return NON_TEACHING_STATUS.SUBMITTED;
   if (normalizedRole === "registrar") return NON_TEACHING_STATUS.RO_REVIEWED;
   if (normalizedRole === "vc") return NON_TEACHING_STATUS.REGISTRAR_REVIEWED;
   return NON_TEACHING_STATUS.DRAFT;
@@ -240,10 +290,18 @@ export const expectedPendingStatus = (role) => {
 
 export const canReviewNonTeachingItem = (item = {}, reviewerRole) => {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
-  const subjectRole = normalizeNonTeachingRole(item.appraisalRole || item.form?.submittedByRole, item.appraisalRole || item.form?.submittedByRole);
+  const subjectRole = normalizeNonTeachingRole(
+    item.appraisalRole || item.form?.submittedByRole,
+    item.appraisalRole || item.form?.submittedByRole,
+  );
 
-  if (role === "vc") return subjectRole !== "vc" && isNonTeachingRole(subjectRole);
-  if (role === "registrar") return subjectRole === "non_teaching_staff" || subjectRole === "reporting_officer";
+  if (role === "vc")
+    return subjectRole !== "vc" && isNonTeachingRole(subjectRole);
+  if (role === "registrar")
+    return (
+      subjectRole === "non_teaching_staff" ||
+      subjectRole === "reporting_officer"
+    );
   if (role === "reporting_officer") return subjectRole === "non_teaching_staff";
   return false;
 };
@@ -259,19 +317,37 @@ const validateMarks = (form, authority) => {
   }
 };
 
-export const validateNonTeachingForm = (form, authority = "self", requireRatings = false) => {
+export const validateNonTeachingForm = (
+  form,
+  authority = "self",
+  requireRatings = false,
+) => {
   validateMarks(form, authority);
 
-  if (!requireRatings) return;
+  if (!requireRatings || authority === "self") return;
 
   for (const section of RATING_SECTIONS) {
     for (let index = 0; index < section.params.length; index += 1) {
-      const value = n(ratingForAuthority(form.partB?.[section.key], index, authority));
+      const value = n(
+        ratingForAuthority(form.partB?.[section.key], index, authority),
+      );
       if (value < 1 || value > 5) {
         throw new Error(`Please fill all ratings in ${section.title}.`);
       }
     }
   }
+};
+
+const stripSelfPartBRatings = (form) => {
+  const nextForm = normalizeNonTeachingForm(form);
+  RATING_SECTIONS.forEach((section) => {
+    const rows = nextForm.partB?.[section.key] || {};
+    section.params.forEach((_label, index) => {
+      delete rows[`p${index}_self`];
+    });
+    nextForm.partB[section.key] = rows;
+  });
+  return nextForm;
 };
 
 export const loadNonTeachingAppraisal = async ({
@@ -306,8 +382,10 @@ const rowPayloadForForm = ({ form, status }) => {
     payload: normalizedForm,
     status,
     self_total: calculateNonTeachingTotals(normalizedForm, "self").total,
-    ro_total: calculateNonTeachingTotals(normalizedForm, "reporting_officer").total,
-    registrar_total: calculateNonTeachingTotals(normalizedForm, "registrar").total,
+    ro_total: calculateNonTeachingTotals(normalizedForm, "reporting_officer")
+      .total,
+    registrar_total: calculateNonTeachingTotals(normalizedForm, "registrar")
+      .total,
     vc_total: calculateNonTeachingTotals(normalizedForm, "vc").total,
     updated_at: nowIso(),
   };
@@ -320,25 +398,39 @@ export const submitNonTeachingSelfAppraisal = async ({
 } = {}) => {
   const normalizedRole = normalizeNonTeachingRole(role, role);
   const status = statusAfterSelfSubmit(normalizedRole);
-  const finalForm = normalizeNonTeachingForm({ ...form, status, submittedByRole: normalizedRole }, profile, normalizedRole);
+  const finalForm = stripSelfPartBRatings(
+    normalizeNonTeachingForm(
+      { ...form, status, submittedByRole: normalizedRole },
+      profile,
+      normalizedRole,
+    ),
+  );
 
   validateNonTeachingForm(finalForm, "self", false);
 
-  const staffEmail = emailKey(finalForm.info.email || profile.email || sessionStorage.getItem("username"));
+  const staffEmail = emailKey(
+    finalForm.info.email || profile.email || sessionStorage.getItem("username"),
+  );
   const ay = academicYear(finalForm.info.ay);
   const rowPayload = rowPayloadForForm({ form: finalForm, status });
 
   const { data, error } = await supabase
     .from("non_teaching_appraisals")
-    .upsert({
-      staff_email: staffEmail,
-      academic_year: ay,
-      ...rowPayload,
-      submitted_at: nowIso(),
-      ro_reviewed_at: status === NON_TEACHING_STATUS.RO_REVIEWED ? nowIso() : null,
-      registrar_reviewed_at: status === NON_TEACHING_STATUS.REGISTRAR_REVIEWED ? nowIso() : null,
-      vc_reviewed_at: status === NON_TEACHING_STATUS.VC_APPROVED ? nowIso() : null,
-    }, { onConflict: "staff_email,academic_year" })
+    .upsert(
+      {
+        staff_email: staffEmail,
+        academic_year: ay,
+        ...rowPayload,
+        submitted_at: nowIso(),
+        ro_reviewed_at:
+          status === NON_TEACHING_STATUS.RO_REVIEWED ? nowIso() : null,
+        registrar_reviewed_at:
+          status === NON_TEACHING_STATUS.REGISTRAR_REVIEWED ? nowIso() : null,
+        vc_reviewed_at:
+          status === NON_TEACHING_STATUS.VC_APPROVED ? nowIso() : null,
+      },
+      { onConflict: "staff_email,academic_year" },
+    )
     .select()
     .single();
 
@@ -351,7 +443,9 @@ export const submitNonTeachingSelfAppraisal = async ({
 };
 
 const profileMapForEmails = async (emails) => {
-  const uniqueEmails = [...new Set((emails || []).map(emailKey).filter(Boolean))];
+  const uniqueEmails = [
+    ...new Set((emails || []).map(emailKey).filter(Boolean)),
+  ];
   if (!uniqueEmails.length) return new Map();
 
   const { data, error } = await supabase
@@ -361,26 +455,47 @@ const profileMapForEmails = async (emails) => {
 
   requireSupabase(error, "Could not load non-teaching profiles");
 
-  return new Map((data || []).map((profile) => [emailKey(profile.email), profile]));
+  return new Map(
+    (data || []).map((profile) => [emailKey(profile.email), profile]),
+  );
 };
 
 const allowedStatusesForReviewer = (reviewerRole) => {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
   if (role === "reporting_officer") {
-    return [NON_TEACHING_STATUS.SUBMITTED, NON_TEACHING_STATUS.RO_REVIEWED, NON_TEACHING_STATUS.REGISTRAR_REVIEWED, NON_TEACHING_STATUS.VC_APPROVED];
+    return [
+      NON_TEACHING_STATUS.SUBMITTED,
+      NON_TEACHING_STATUS.RO_REVIEWED,
+      NON_TEACHING_STATUS.REGISTRAR_REVIEWED,
+      NON_TEACHING_STATUS.VC_APPROVED,
+    ];
   }
   if (role === "registrar") {
-    return [NON_TEACHING_STATUS.RO_REVIEWED, NON_TEACHING_STATUS.REGISTRAR_REVIEWED, NON_TEACHING_STATUS.VC_APPROVED];
+    return [
+      NON_TEACHING_STATUS.RO_REVIEWED,
+      NON_TEACHING_STATUS.REGISTRAR_REVIEWED,
+      NON_TEACHING_STATUS.VC_APPROVED,
+    ];
   }
   if (role === "vc") {
-    return [NON_TEACHING_STATUS.REGISTRAR_REVIEWED, NON_TEACHING_STATUS.VC_APPROVED];
+    return [
+      NON_TEACHING_STATUS.REGISTRAR_REVIEWED,
+      NON_TEACHING_STATUS.VC_APPROVED,
+    ];
   }
   return [];
 };
 
 export const decorateNonTeachingRow = (row, profile = {}) => {
-  const form = normalizeNonTeachingForm(row.payload, profile, profile.appraisal_role);
-  const role = normalizeNonTeachingRole(profile.appraisal_role, normalizeNonTeachingRole(form.submittedByRole, "non_teaching_staff"));
+  const form = normalizeNonTeachingForm(
+    row.payload,
+    profile,
+    profile.appraisal_role,
+  );
+  const role = normalizeNonTeachingRole(
+    profile.appraisal_role,
+    normalizeNonTeachingRole(form.submittedByRole, "non_teaching_staff"),
+  );
   const name = profile.full_name || form.info?.name || row.staff_email;
   const roTotals = calculateNonTeachingTotals(form, "reporting_officer");
   const registrarTotals = calculateNonTeachingTotals(form, "registrar");
@@ -394,14 +509,24 @@ export const decorateNonTeachingRow = (row, profile = {}) => {
     form,
     name,
     employeeId: profile.employee_id || form.info?.employeeId || "",
-    designation: profile.designation || form.info?.designation || nonTeachingRoleLabel(role),
+    designation:
+      profile.designation ||
+      form.info?.designation ||
+      nonTeachingRoleLabel(role),
     department: profile.department || form.info?.department || "",
     appraisalRole: role,
     roleLabel: nonTeachingRoleLabel(role),
     avatar: initialsFor(name, row.staff_email),
-    avatarColor: role === "registrar" ? "#7c3aed" : role === "reporting_officer" ? "#0891b2" : "#1d4ed8",
+    avatarColor:
+      role === "registrar"
+        ? "#7c3aed"
+        : role === "reporting_officer"
+          ? "#0891b2"
+          : "#1d4ed8",
     status: row.status || form.status,
-    submittedOn: row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : "",
+    submittedOn: row.submitted_at
+      ? new Date(row.submitted_at).toLocaleDateString()
+      : "",
     selfTotal: n(row.self_total),
     roTotal: n(row.ro_total || roTotals.total),
     registrarTotal: n(row.registrar_total || registrarTotals.total),
@@ -431,10 +556,14 @@ export const fetchNonTeachingQueueForRole = async ({
   const { data, error } = await query;
   requireSupabase(error, "Could not load non-teaching review queue");
 
-  const profiles = await profileMapForEmails((data || []).map((row) => row.staff_email));
+  const profiles = await profileMapForEmails(
+    (data || []).map((row) => row.staff_email),
+  );
 
   return (data || [])
-    .map((row) => decorateNonTeachingRow(row, profiles.get(emailKey(row.staff_email))))
+    .map((row) =>
+      decorateNonTeachingRow(row, profiles.get(emailKey(row.staff_email))),
+    )
     .filter((item) => canReviewNonTeachingItem(item, role));
 };
 
@@ -442,19 +571,15 @@ export const primeFormForReviewer = (form = {}, reviewerRole) => {
   const role = normalizeNonTeachingRole(reviewerRole, reviewerRole);
   const nextForm = normalizeNonTeachingForm(form);
 
-  const partAFallbacks = role === "vc"
-    ? ["vcMarks", "regMarks", "roMarks", "marks"]
-    : role === "registrar"
-      ? ["regMarks", "roMarks", "marks"]
-      : ["roMarks", "marks"];
-  const partBTarget = role === "vc" ? "vc" : role === "registrar" ? "reg" : "ro";
-  const partBFallbacks = role === "vc" ? ["vc", "reg", "ro"] : role === "registrar" ? ["reg", "ro"] : ["ro"];
+  const partBTarget =
+    role === "vc" ? "vc" : role === "registrar" ? "reg" : "ro";
 
   SELF_ITEMS.forEach(({ key }) => {
     const item = nextForm[key] || {};
-    const targetKey = role === "vc" ? "vcMarks" : role === "registrar" ? "regMarks" : "roMarks";
+    const targetKey =
+      role === "vc" ? "vcMarks" : role === "registrar" ? "regMarks" : "roMarks";
     if (!clean(item[targetKey])) {
-      item[targetKey] = partAFallbacks.map((field) => item[field]).find((value) => clean(value)) || "";
+      item[targetKey] = "";
     }
     nextForm[key] = item;
   });
@@ -464,9 +589,7 @@ export const primeFormForReviewer = (form = {}, reviewerRole) => {
     section.params.forEach((_label, index) => {
       const targetKey = `p${index}_${partBTarget}`;
       if (!clean(rows[targetKey])) {
-        rows[targetKey] = partBFallbacks
-          .map((suffix) => rows[`p${index}_${suffix}`])
-          .find((value) => clean(value)) || "";
+        rows[targetKey] = "";
       }
     });
     nextForm.partB[section.key] = rows;
@@ -487,31 +610,40 @@ export const submitNonTeachingReview = async ({
   const currentStatus = item?.status || form?.status;
 
   if (currentStatus !== expectedStatus && currentStatus !== status) {
-    throw new Error(`This appraisal is not pending ${nonTeachingRoleLabel(role)} review.`);
+    throw new Error(
+      `This appraisal is not pending ${nonTeachingRoleLabel(role)} review.`,
+    );
   }
   if (!canReviewNonTeachingItem(item, role)) {
-    throw new Error(`${nonTeachingRoleLabel(role)} is not authorized to review this appraisal.`);
+    throw new Error(
+      `${nonTeachingRoleLabel(role)} is not authorized to review this appraisal.`,
+    );
   }
 
   const authority = role === "vc" ? "vc" : role;
-  const finalForm = normalizeNonTeachingForm({
-    ...form,
-    status,
-    roRemarks: role === "reporting_officer" ? remarks : form.roRemarks,
-    registrarRemarks: role === "registrar" ? remarks : form.registrarRemarks,
-    vcRemarks: role === "vc" ? remarks : form.vcRemarks,
-  }, item?.form?.info || {}, item?.appraisalRole);
+  const finalForm = normalizeNonTeachingForm(
+    {
+      ...form,
+      status,
+      roRemarks: role === "reporting_officer" ? remarks : form.roRemarks,
+      registrarRemarks: role === "registrar" ? remarks : form.registrarRemarks,
+      vcRemarks: role === "vc" ? remarks : form.vcRemarks,
+    },
+    item?.form?.info || {},
+    item?.appraisalRole,
+  );
 
   validateNonTeachingForm(finalForm, authority, true);
 
   const staffEmail = emailKey(item?.email || finalForm.info.email);
   const ay = academicYear(item?.academicYear || finalForm.info.ay);
   const rowPayload = rowPayloadForForm({ form: finalForm, status });
-  const timestampColumn = role === "reporting_officer"
-    ? "ro_reviewed_at"
-    : role === "registrar"
-      ? "registrar_reviewed_at"
-      : "vc_reviewed_at";
+  const timestampColumn =
+    role === "reporting_officer"
+      ? "ro_reviewed_at"
+      : role === "registrar"
+        ? "registrar_reviewed_at"
+        : "vc_reviewed_at";
 
   const { data, error } = await supabase
     .from("non_teaching_appraisals")
@@ -551,52 +683,104 @@ const ratingLabel = (value) => {
 export const openNonTeachingReport = ({
   item = {},
   form = item.form,
-  generatedBy = sessionStorage.getItem("name") || "Authority",
+  generatedBy = localStorage.getItem("name") || "Authority",
 } = {}) => {
-  const reportForm = normalizeNonTeachingForm(form || item.form, item, item.appraisalRole);
+  const reportForm = normalizeNonTeachingForm(
+    form || item.form,
+    item,
+    item.appraisalRole,
+  );
   const totals = {
     self: calculateNonTeachingTotals(reportForm, "self"),
     ro: calculateNonTeachingTotals(reportForm, "reporting_officer"),
     registrar: calculateNonTeachingTotals(reportForm, "registrar"),
     vc: calculateNonTeachingTotals(reportForm, "vc"),
   };
-  const docsFor = (key) => (reportForm.docs?.[key] || [])
-    .map((file) => `<a href="${escapeHtml(file.url)}" target="_blank">${escapeHtml(file.name || file.url)}</a>`)
-    .join("<br>") || "-";
+  const normalizeReportRole = (role) =>
+    ({
+      reporting_officer: "ro",
+      reg: "registrar",
+    })[role] || role;
+  const reportRoles = Array.from(
+    new Set(["self", ...(visibleRoles || []).map(normalizeReportRole)]),
+  ).filter((role) => ["self", "ro", "registrar", "vc"].includes(role));
+  const partBRoles = reportRoles.filter((role) => role !== "self");
+  const maxForRole = (role) =>
+    role === "self" ? NON_TEACHING_MAX.partA : NON_TEACHING_MAX.grand;
+  const reportColumns = {
+    self: {
+      label: "Self",
+      total: totals.self.total,
+      partA: (key) => reportForm[key]?.marks,
+      remarks: reportForm.remarks,
+      remarksLabel: "Staff",
+    },
+    ro: {
+      label: "RO",
+      total: totals.ro.total,
+      partA: (key) => reportForm[key]?.roMarks,
+      partB: (row, index) => row[`p${index}_ro`],
+      remarks: reportForm.roRemarks,
+      remarksLabel: "Reporting Officer",
+    },
+    registrar: {
+      label: "Registrar",
+      total: totals.registrar.total,
+      partA: (key) => reportForm[key]?.regMarks,
+      partB: (row, index) => row[`p${index}_reg`],
+      remarks: reportForm.registrarRemarks,
+      remarksLabel: "Registrar",
+    },
+    vc: {
+      label: "VC",
+      total: totals.vc.total,
+      partA: (key) => reportForm[key]?.vcMarks,
+      partB: (row, index) => row[`p${index}_vc`],
+      remarks: reportForm.vcRemarks,
+      remarksLabel: "VC",
+    },
+  };
+  const docsFor = (key) =>
+    (reportForm.docs?.[key] || [])
+      .map(
+        (file) =>
+          `<a href="${escapeHtml(file.url)}" target="_blank">${escapeHtml(file.name || file.url)}</a>`,
+      )
+      .join("<br>") || "-";
 
-  const partARows = SELF_ITEMS.map(({ key, label, max }) => `
+  const partARows = SELF_ITEMS.map(
+    ({ key, label, max }) => `
     <tr>
       <td>${escapeHtml(label)}</td>
       <td>${escapeHtml(reportForm[key]?.text)}</td>
       <td>${docsFor(key)}</td>
       <td>${max}</td>
-      <td>${escapeHtml(reportForm[key]?.marks)}</td>
-      <td>${escapeHtml(reportForm[key]?.roMarks)}</td>
-      <td>${escapeHtml(reportForm[key]?.regMarks)}</td>
-      <td>${escapeHtml(reportForm[key]?.vcMarks)}</td>
+      ${reportRoles.map((role) => `<td>${escapeHtml(reportColumns[role].partA(key))}</td>`).join("")}
     </tr>
-  `).join("");
+  `,
+  ).join("");
 
-  const partBRows = RATING_SECTIONS.map((section) => `
+  const partBRows = RATING_SECTIONS.map(
+    (section) => `
     <h3>${escapeHtml(section.title)} (Max ${section.max})</h3>
     <table>
       <thead>
-        <tr><th>Parameter</th><th>Self</th><th>RO</th><th>Registrar</th><th>VC</th></tr>
+        <tr><th>Parameter</th>${partBRoles.map((role) => `<th>${escapeHtml(reportColumns[role].label)}</th>`).join("")}</tr>
       </thead>
       <tbody>
-        ${section.params.map((param, index) => {
-          const row = reportForm.partB?.[section.key] || {};
-          return `<tr>
+        ${section.params
+          .map((param, index) => {
+            const row = reportForm.partB?.[section.key] || {};
+            return `<tr>
             <td>${escapeHtml(param)}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_self`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_ro`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_reg`]))}</td>
-            <td>${escapeHtml(ratingLabel(row[`p${index}_vc`]))}</td>
+            ${partBRoles.map((role) => `<td>${escapeHtml(ratingLabel(reportColumns[role].partB(row, index)))}</td>`).join("")}
           </tr>`;
-        }).join("")}
+          })
+          .join("")}
       </tbody>
     </table>
-  `).join("");
+  `,
+  ).join("");
 
   const reportWindow = window.open("", "_blank", "width=1100,height=800");
   if (!reportWindow) return;
@@ -632,40 +816,41 @@ export const openNonTeachingReport = ({
           ${[
             ["Name", reportForm.info?.name || item.name],
             ["Employee ID", reportForm.info?.employeeId || item.employeeId],
-            ["Role", nonTeachingRoleLabel(item.appraisalRole || reportForm.submittedByRole)],
+            [
+              "Role",
+              nonTeachingRoleLabel(
+                item.appraisalRole || reportForm.submittedByRole,
+              ),
+            ],
             ["Designation", reportForm.info?.designation || item.designation],
             ["Department", reportForm.info?.department || item.department],
             ["Status", reportForm.status || item.status],
-          ].map(([label, value]) => `<div class="box"><div class="label">${label}</div><div>${escapeHtml(value)}</div></div>`).join("")}
+          ]
+            .map(
+              ([label, value]) =>
+                `<div class="box"><div class="label">${label}</div><div>${escapeHtml(value)}</div></div>`,
+            )
+            .join("")}
         </div>
 
-        <div class="totals">
-          ${[
-            ["Self Claimed", totals.self.total],
-            ["Reporting Officer", totals.ro.total],
-            ["Registrar", totals.registrar.total],
-            ["VC Final", totals.vc.total],
-          ].map(([label, value]) => `<div class="total"><div class="label">${label}</div><div class="score">${value.toFixed(1)} / ${NON_TEACHING_MAX.grand}</div></div>`).join("")}
+        <div class="totals" style="grid-template-columns: repeat(${reportRoles.length}, 1fr);">
+          ${reportRoles.map((role) => `<div class="total"><div class="label">${escapeHtml(reportColumns[role].remarksLabel)}</div><div class="score">${reportColumns[role].total.toFixed(1)} / ${maxForRole(role)}</div></div>`).join("")}
         </div>
 
         <h2>Part A - Self Appraisal</h2>
         <table>
           <thead>
-            <tr><th>Particular</th><th>Description</th><th>Documents</th><th>Max</th><th>Self</th><th>RO</th><th>Registrar</th><th>VC</th></tr>
+            <tr><th>Particular</th><th>Description</th><th>Documents</th><th>Max</th>${reportRoles.map((role) => `<th>${escapeHtml(reportColumns[role].label)}</th>`).join("")}</tr>
           </thead>
           <tbody>${partARows}</tbody>
         </table>
 
-        <h2>Part B - Authority Ratings</h2>
-        ${partBRows}
+        ${includePartB && partBRoles.length ? `<h2>Part B - Authority Ratings</h2>${partBRows}` : ""}
 
         <h2>Remarks</h2>
         <table>
           <tbody>
-            <tr><th>Staff</th><td>${escapeHtml(reportForm.remarks)}</td></tr>
-            <tr><th>Reporting Officer</th><td>${escapeHtml(reportForm.roRemarks)}</td></tr>
-            <tr><th>Registrar</th><td>${escapeHtml(reportForm.registrarRemarks)}</td></tr>
-            <tr><th>VC</th><td>${escapeHtml(reportForm.vcRemarks)}</td></tr>
+            ${reportRoles.map((role) => `<tr><th>${escapeHtml(reportColumns[role].remarksLabel)}</th><td>${escapeHtml(reportColumns[role].remarks)}</td></tr>`).join("")}
           </tbody>
         </table>
         <div class="muted">Generated by ${escapeHtml(generatedBy)} on ${new Date().toLocaleString()}</div>
@@ -674,4 +859,3 @@ export const openNonTeachingReport = ({
   `);
   reportWindow.document.close();
 };
-

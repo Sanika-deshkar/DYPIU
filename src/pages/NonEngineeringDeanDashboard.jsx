@@ -964,8 +964,6 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
   const scoreHeaders = (
     <>
       <th style={TH}>Faculty Score</th>
-      <th style={TH_HOD}>HOD Score</th>
-      <th style={TH_DIR}>Director Score</th>
       <th style={TH_DEAN}>Dean Score</th>
     </>
   );
@@ -973,8 +971,6 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
   const ScoreCells = ({ sectionKey, row, index }) => (
     <>
       <td style={TDS}>{cell(row.score, true)}</td>
-      <td style={TDS_HOD}>{cell(row.hod, true)}</td>
-      <td style={TDS_DIR}>{cell(row.director, true)}</td>
       <td style={TDS_DEAN}><DeanScoreCell sectionKey={sectionKey} index={index} row={row} deanData={deanData} setDeanData={setDeanData} /></td>
     </>
   );
@@ -982,7 +978,7 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
   const ReviewTable = ({ title, accent = "#4c1d95", sectionKey, columns, docPrefix, rows: sectionRows }) => {
     const dataRows = sectionRows || rows(sectionKey);
     const hasDocs = Boolean(docPrefix);
-    const totalColumns = 1 + columns.length + (hasDocs ? 1 : 0) + 4;
+    const totalColumns = 1 + columns.length + (hasDocs ? 1 : 0) + 2;
 
     return (
       <SC title={title} accent={accent}>
@@ -1025,7 +1021,7 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       <div style={{ background: "linear-gradient(90deg,#4c1d95,#7c3aed)", color: "#ede9fe", borderRadius: 8, padding: "10px 16px", marginBottom: 14, fontSize: 12 }}>
-        <strong>Dean Review Mode</strong> - Existing self, HOD, and Director scores are read-only. Enter Dean scores in the Dean column, then submit remarks.
+        <strong>Dean Review Mode</strong> - Faculty self-scores are read-only. Only the Dean score column is editable.
       </div>
 
       <SC title="Faculty Information" accent="#4c1d95">
@@ -1077,8 +1073,6 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
               <th style={TH}>Details</th>
               <th style={TH}>View Docs</th>
               <th style={TH}>Self Score</th>
-              <th style={TH_HOD}>HOD</th>
-              <th style={TH_DIR}>Director</th>
               <th style={TH_DEAN}>Dean</th>
             </tr>
           </thead>
@@ -1087,8 +1081,6 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
               <td style={TD}><RO val={approval.innovDetails || "Innovative / participatory teaching methods"} /></td>
               <td style={TDV}><ViewDocsCell docKey="innov" docs={docs} /></td>
               <td style={TDS}><RO val={approval.innovScore} center /></td>
-              <td style={TDS_HOD}><RO val={approval.innovHod} center /></td>
-              <td style={TDS_DIR}><RO val={approval.innovDirector} center /></td>
               <td style={TDS_DEAN}><DeanInnovativeScoreCell approval={approval} deanData={deanData} setDeanData={setDeanData} /></td>
             </tr>
           </tbody>
@@ -1326,23 +1318,18 @@ function DeanReviewScoreForm({ approval, deanData, setDeanData }) {
 }
 
 function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit, readOnly = false }) {
-  const [remarks, setRemarks] = useState(approval?.deanRemarks || approval?.directorRemarks || approval?.hodRemarks || "");
+  const [remarks, setRemarks] = useState(approval?.deanRemarks || "");
   const [deanData, setDeanData] = useState({});
   const [tab, setTab] = useState("form");
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const reviewLocked = readOnly || /Reviewed|Approved|Rejected/.test(approval?.status || "");
   const sectionScores = deanScorePayload(approval, deanData);
   const deanScores = deanScoreTotals(sectionScores);
-  const previousTotal = n(approval?.directorTotal || approval?.hodTotal || approval?.declaration?.grand_total);
+  const selfTotal = n(approval?.declaration?.grand_total || approval?.grandTotal || approval?.total);
   const titleMap = {
     directorApprovals: "Director Approval Review",
     facultyApprovals: "Faculty Approval Review",
   };
-  const previousScoreLabel = approval?.directorTotal
-    ? "Director Total"
-    : approval?.hodTotal
-      ? "HOD Total"
-      : "Submitted Total";
 
   return (
     <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 18px 45px rgba(15,23,42,0.18)", minHeight: "100%" }}>
@@ -1358,7 +1345,7 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit, readOnl
         {[
           { label: "Employee ID", value: approval.employeeId },
           { label: "Submitted", value: approval.submittedOn },
-          { label: previousScoreLabel, value: previousTotal.toFixed(1) },
+          { label: "Self Total", value: selfTotal.toFixed(1) },
           { label: "Dean Total", value: deanScores.total.toFixed(1) },
         ].map((item) => (
           <div key={item.label} style={{ background: "#f8fafc", borderRadius: 12, padding: "18px 16px" }}>

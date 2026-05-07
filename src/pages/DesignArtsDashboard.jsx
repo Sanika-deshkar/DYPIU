@@ -485,6 +485,7 @@ export function DesignArtsAuthorityReviewPanel({ person, reviewerRole, onBack, o
   const chain = getReviewChain(subjectProfile);
   const currentIndex = chain.indexOf(reviewerRole);
   const previousRoles = currentIndex > 0 ? chain.slice(0, currentIndex) : [];
+  const visiblePreviousRoles = reviewerRole === "vc" ? previousRoles : [];
 
   const reviewerForm = useMemo(() => {
     const merged = { ...form };
@@ -515,7 +516,7 @@ export function DesignArtsAuthorityReviewPanel({ person, reviewerRole, onBack, o
         total: n(person?.[`${reviewerRole}Total`] ?? totals.total),
       },
       maxScores: { partA: PART_A_MAX, partB: PART_B_MAX, grand: GRAND_MAX },
-      scoreRoles: ["score", ...previousRoles, reviewerRole],
+      scoreRoles: ["score", ...visiblePreviousRoles, reviewerRole],
       roleLabel,
       status: person?.status,
       remarksLabel: `${roleLabel(reviewerRole)} Remarks`,
@@ -548,7 +549,7 @@ export function DesignArtsAuthorityReviewPanel({ person, reviewerRole, onBack, o
           reviewerRole={reviewerRole}
           reviewData={reviewData}
           setReviewData={setReviewData}
-          previousRoles={previousRoles}
+          previousRoles={visiblePreviousRoles}
           sectionView={sectionView}
         />
       )}
