@@ -46,7 +46,7 @@ export const feedbackAverage = (row = {}) => {
 };
 
 export const feedbackRowScore = (row = {}, maxScore = 10) =>
-  clampScore(feedbackAverage(row) / 10, maxScore);
+  clampScore(feedbackAverage(row), maxScore);
 
 export const feedbackSectionScore = (rows = [], maxScore = 10) => {
   const filled = rows.filter((row) =>

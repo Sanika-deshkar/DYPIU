@@ -4,7 +4,7 @@ import { ACR_DETAIL_POINTS, APP_INFO } from "../constants/formConfig";
 import { supabase } from "../services/supabase";
 import { saveAppraisalDraftSection } from "../services/appraisalPersistence";
 import { clampScore, effectiveMaxScore, clearDraft, draftKeyFor, feedbackAverage, feedbackRowScore, feedbackSectionScore, isValidDDMMYYYY, loadDraft, maskDateDDMMYYYY, saveDraft, scoreRemaining, sumSectionScore, validateCompleteRows } from "../utils/appraisalFormUtils";
-import { cloudinaryDocumentViewUrl, cloudinaryOriginalPdfUrl, uploadToCloudinary } from "../services/cloudinary";
+import { cloudinaryOriginalPdfUrl, documentLinkProps, uploadToCloudinary } from "../services/cloudinary";
 import {
   getReviewChain,
   isRejectedStatus,
@@ -288,7 +288,7 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} {...documentLinkProps(f)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           {f.type?.startsWith("image/") && (
             <img src={f.previewUrl || f.url} alt="" style={{ width: 22, height: 22, objectFit: "cover", borderRadius: 3 }} />
           )}
@@ -334,7 +334,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }}
+        <a key={i} {...documentLinkProps(f)}
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}
         >
@@ -2529,6 +2529,7 @@ export default function HODDashboard() {
       .center { text-align: center; }
       .total { font-weight: bold; font-size: 13px; }
       .page-break { page-break-before: always; }
+      .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
 
       .info td {
         border: none;
@@ -2538,6 +2539,7 @@ export default function HODDashboard() {
   </head>
 
   <body>
+    <img class="print-logo" src="/image.png" alt="DYPIU logo" />
 
     <h1>Faculty Appraisal Report</h1>
 
@@ -2594,12 +2596,14 @@ export default function HODDashboard() {
       </tr>
     </table>
 
+    ${sectionApplicability.projects === "notApplicable" ? "" : `
     <!-- A4 -->
     <h3>A4: Projects</h3>
     <table>
       <tr><th>Project Type</th><th>Score</th></tr>
       ${projects.map(p => `<tr><td>${p.label || "&nbsp;"}</td><td class="center">${p.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
+    `}
 
     <!-- A5 -->
     <h3>A5: Qualification Enhancement</h3>
@@ -2617,7 +2621,7 @@ export default function HODDashboard() {
           <td>${f.code || "&nbsp;"}</td>
           <td class="center">${f.fb1 || "&nbsp;"}</td>
           <td class="center">${f.fb2 || "&nbsp;"}</td>
-          <td class="center">${f.score || "&nbsp;"}</td>
+          <td class="center">${feedbackRowScore(f, 10).toFixed(1)}</td>
         </tr>
       `).join('')}
     </table>
@@ -2682,11 +2686,13 @@ export default function HODDashboard() {
       ${ict.map(i => `<tr><td>${i.title || "&nbsp;"}</td><td>${i.desc || "&nbsp;"}</td><td class="center">${i.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
 
+    ${sectionApplicability.research === "notApplicable" ? "" : `
     <h3>B4(a). Research Guidance</h3>
     <table>
       <tr><th>Degree</th><th>Name</th><th>Thesis</th><th>Score</th></tr>
       ${research.map(r => `<tr><td>${r.degree || "&nbsp;"}</td><td>${r.name || "&nbsp;"}</td><td>${r.thesis || "&nbsp;"}</td><td class="center">${r.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
+    `}
 
     <h3>B4(b). Ongoing & Completed Research / Consultancy Internal Projects</h3>
     <table>

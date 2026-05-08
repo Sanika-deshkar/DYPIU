@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
 import { fetchNonTeachingQueueForRole, expectedPendingStatus, isNonTeachingReviewComplete } from "../services/nonTeachingWorkflow";
+import { documentLinkProps } from "../services/cloudinary";
 import { SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { VC_USER } from "../data/mockData";
 import { DEAN_TRACKS, UNIVERSITY_SCHOOLS } from "../constants/universityHierarchy";
 import { FORM_TYPES, formTypeForSchool } from "../constants/formRouting";
 import { getReviewChain, getSchoolKey, reviewedStatusFor, profileFromsessionStorage } from "../utils/hierarchy";
 import { openFullFormReport } from "../utils/fullFormReport";
+import { feedbackRowScore } from "../utils/appraisalFormUtils";
 import { MediaCommAuthorityReviewPanel } from "./MediaCommDashboard";
 import { DesignArtsAuthorityReviewPanel } from "./DesignArtsDashboard";
 import { NonTeachingAuthorityReviewPanel } from "./NonTeachingStaffDashboard";
@@ -93,7 +95,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={f.previewUrl || f.url} target="_blank" rel="noreferrer"
+        <a key={i} {...documentLinkProps(f)}
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#0ea5e9", fontSize: 10, textDecoration: "none", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}>
           📄 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
@@ -300,6 +302,8 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
   const { docs } = person;
   const courseFileRow = Array.isArray(person.courseFile) ? (person.courseFile[0] || {}) : (person.courseFile || {});
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
+  const sectionApplicability = person.sectionApplicability || {};
+  const sectionIsApplicable = (key) => sectionApplicability[key] !== "notApplicable";
 
   const scoreHeaders = (
     <>
@@ -314,7 +318,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
 
   const scoreCells = (r, section, i) => (
     <>
-      <td style={TDS}><RO val={r?.score} center /></td>
+      <td style={TDS}><RO val={section === "feedback" ? feedbackRowScore(r, 10).toFixed(1) : r?.score} center /></td>
       {reviewRoles.map((role) => {
         const meta = vcRoleMeta(role);
         return <td key={role} style={meta.cellStyle}><RO val={vcScoreForRole(r, role)} center /></td>;
@@ -405,7 +409,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
       {[
         ["A4. Projects (Max 10)", "projects", "proj"],
         ["A5. Qualification Enhancement (Max 10)", "quals", "qual"],
-      ].map(([title, key, docPfx]) => (
+      ].filter(([, key]) => sectionIsApplicable(key)).map(([title, key, docPfx]) => (
         <SC key={key} title={title} accent="#7c3aed">
           <table style={T}><thead><tr>
             <th style={TH}>SN</th><th style={TH}>Description</th><th style={TH}>Docs</th>
@@ -521,7 +525,7 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
           render: (r) => [r.details, r.usage] },
         { title: "B8. Self Development — FDP (Max 10)", key: "fdps", docPfx: "fdp",
           render: (r) => [r.program, r.duration, r.org] },
-      ].map(({ title, key, docPfx, render }) => (
+      ].filter(({ key }) => sectionIsApplicable(key)).map(({ title, key, docPfx, render }) => (
         <SC key={key} title={title} accent="#7c3aed">
           <div style={{ overflowX: "auto" }}><table style={T}><thead>
             <tr>

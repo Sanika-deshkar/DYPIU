@@ -36,13 +36,30 @@ export const cloudinaryOriginalPdfUrl = (url) => {
 };
 
 export const cloudinaryDocumentViewUrl = (file = {}) => {
-  const url = file.previewUrl || file.previewImageUrl || file.url;
-  if (!isPdfDocument(file)) return url || "";
-  if (file.previewImageUrl) return file.previewImageUrl;
-  if (url?.startsWith("blob:")) return url;
-  if (url?.includes("/image/upload/")) return cloudinaryPdfPreviewUrl(url);
-  return "";
+  if (!isPdfDocument(file)) return file.previewUrl || file.url || file.previewImageUrl || "";
+
+  const fullPdfUrl =
+    file.previewUrl ||
+    file.originalUrl ||
+    file.url ||
+    cloudinaryOriginalPdfUrl(file.previewImageUrl);
+
+  return fullPdfUrl ? cloudinaryOriginalPdfUrl(fullPdfUrl) : "";
 };
+
+export const BLOCKED_DOCUMENT_MESSAGE =
+  "This PDF cannot be opened because its original file URL is missing. Please re-upload this document.";
+
+export const documentLinkProps = (file = {}) => ({
+  href: cloudinaryDocumentViewUrl(file) || "#blocked-document",
+  target: "_blank",
+  rel: "noreferrer",
+  onClick: (event) => {
+    if (cloudinaryDocumentViewUrl(file)) return;
+    event.preventDefault();
+    alert(BLOCKED_DOCUMENT_MESSAGE);
+  },
+});
 
 export const isBlockedCloudinaryPdf = (file = {}) =>
   isPdfDocument(file) &&

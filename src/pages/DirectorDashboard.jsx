@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ACR_DETAIL_POINTS, SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { DIRECTOR_USER, HOD_LIST, FACULTY_LIST, DIRECTOR_SELF_DATA } from "../data/mockData";
 import { loadAppraisalDocuments, loadSavedAppraisal, saveAppraisal, saveAppraisalDraftSection } from "../services/appraisalPersistence";
-import { cloudinaryDocumentViewUrl, uploadToCloudinary } from "../services/cloudinary";
+import { documentLinkProps, uploadToCloudinary } from "../services/cloudinary";
 import { fetchReviewQueueForRole, submitWorkflowReview } from "../services/reviewWorkflow";
 import { supabase } from "../services/supabase";
 import { clampScore, effectiveMaxScore, clearDraft, draftKeyFor, feedbackAverage, feedbackRowScore, feedbackSectionScore, isValidDDMMYYYY, loadDraft, maskDateDDMMYYYY, saveDraft, scoreRemaining, sumSectionScore, validateCompleteRows } from "../utils/appraisalFormUtils";
@@ -134,7 +134,7 @@ function ViewCell({ id, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((f, idx) => (
-        <a key={idx} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
+        <a key={idx} {...documentLinkProps(f)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }} title={f.name}>
           👁 {f.name.length > 12 ? f.name.slice(0, 12) + "…" : f.name}
         </a>
       ))}
@@ -189,7 +189,7 @@ function ViewDocsCell({ docKey, docs }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((f, i) => (
-        <a key={i} href={cloudinaryDocumentViewUrl(f) || "#blocked-pdf"} target="_blank" rel="noreferrer" onClick={(event) => { if (!cloudinaryDocumentViewUrl(f)) { event.preventDefault(); alert("This old PDF was uploaded in a Cloudinary mode that is blocked for browser viewing. Please re-upload this document, or enable PDF delivery in Cloudinary security settings."); } }}
+        <a key={i} {...documentLinkProps(f)}
           style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#0ea5e9", fontSize: 10, textDecoration: "none", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
           title={f.name}>
           📄 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
@@ -288,6 +288,8 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
   const getDirS = (key) => dirData[key] ?? faculty.innovDirector ?? faculty.innovDir ?? "";
 
   const { info, lectures, courseFile, projects, quals, feedback, deptActs, uniActs, society, industry, acr, journals, books, ict, research, projects2, externalProjects, patents, awards, confs, proposals, products, fdps, training, docs } = faculty;
+  const sectionApplicability = faculty.sectionApplicability || {};
+  const sectionIsApplicable = (key) => sectionApplicability[key] !== "notApplicable";
   const courseFileRow = Array.isArray(courseFile) ? (courseFile[0] || {}) : (courseFile || {});
 
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
@@ -384,7 +386,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
       </SC>
 
       {/* A4: Projects */}
-      <SC title="A4. Projects (Max 10)" accent="#8b5cf6">
+      {sectionIsApplicable("projects") && <SC title="A4. Projects (Max 10)" accent="#8b5cf6">
         <table style={T}>
           <thead><tr>
             <th style={TH}>SN</th><th style={TH}>Project Type</th>
@@ -402,7 +404,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
             ))}
           </tbody>
         </table>
-      </SC>
+      </SC>}
 
       {/* A5: Qualification */}
       <SC title="A5. Qualification Enhancement (Max 10)" accent="#8b5cf6">
@@ -443,7 +445,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
                 <td style={{ ...TDC, fontWeight: 700, color: "#6366f1" }}>
                   {r.fb1 && r.fb2 ? ((n(r.fb1) + n(r.fb2)) / 2).toFixed(2) : "—"}
                 </td>
-                <td style={TDS}><RO val={r.score} center /></td>
+                <td style={TDS}><RO val={feedbackRowScore(r, 10).toFixed(1)} center /></td>
                 <td style={TDS_DIR}><DirInput val={getDir("feedback", i, "dir")} onChange={v => setDir("feedback", i, "dir", v)} /></td>
               </tr>
             ))}
@@ -640,6 +642,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
         </table>
       </SC>
 
+      {sectionIsApplicable("research") && <>
       {/* B4: Research Guidance */}
       <SC title="B4(a). Research Guidance — PhD / PG (Max 30)" accent="#059669">
         <table style={T}>
@@ -662,6 +665,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData, dirData, setDirData }
           </tbody>
         </table>
       </SC>
+      </>}
 
       <SC title="B4(b). Research / Consultancy Internal Projects (Max 45)" accent="#059669">
         <div style={{ overflowX: "auto" }}>
@@ -1738,6 +1742,7 @@ export default function DirectorDashboard() {
       .center { text-align: center; }
       .total { font-weight: bold; font-size: 13px; }
       .page-break { page-break-before: always; }
+      .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
 
       .info td {
         border: none;
@@ -1747,6 +1752,7 @@ export default function DirectorDashboard() {
   </head>
 
   <body>
+    <img class="print-logo" src="/image.png" alt="DYPIU logo" />
 
     <h1>Faculty Appraisal Report</h1>
 
@@ -1803,12 +1809,14 @@ export default function DirectorDashboard() {
       </tr>
     </table>
 
+    ${sectionApplicability.projects === "notApplicable" ? "" : `
     <!-- A4 -->
     <h3>A4: Projects</h3>
     <table>
       <tr><th>Project Type</th><th>Score</th></tr>
       ${projects.map(p => `<tr><td>${p.label || "&nbsp;"}</td><td class="center">${p.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
+    `}
 
     <!-- A5 -->
     <h3>A5: Qualification Enhancement</h3>
@@ -1826,7 +1834,7 @@ export default function DirectorDashboard() {
           <td>${f.code || "&nbsp;"}</td>
           <td class="center">${f.fb1 || "&nbsp;"}</td>
           <td class="center">${f.fb2 || "&nbsp;"}</td>
-          <td class="center">${f.score || "&nbsp;"}</td>
+          <td class="center">${feedbackRowScore(f, 10).toFixed(1)}</td>
         </tr>
       `).join('')}
     </table>
@@ -1891,11 +1899,13 @@ export default function DirectorDashboard() {
       ${ict.map(i => `<tr><td>${i.title || "&nbsp;"}</td><td>${i.desc || "&nbsp;"}</td><td class="center">${i.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
 
+    ${sectionApplicability.research === "notApplicable" ? "" : `
     <h3>B4(a). Research Guidance</h3>
     <table>
       <tr><th>Degree</th><th>Name</th><th>Thesis</th><th>Score</th></tr>
       ${research.map(r => `<tr><td>${r.degree || "&nbsp;"}</td><td>${r.name || "&nbsp;"}</td><td>${r.thesis || "&nbsp;"}</td><td class="center">${r.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
+    `}
 
     <h3>B4(b). Ongoing & Completed Research / Consultancy Internal Projects</h3>
     <table>
@@ -3054,7 +3064,7 @@ export default function DirectorDashboard() {
                   n(item.courseFile?.score), n(item.innovScore),
                   ...(item.projects || []).map(r => n(r.score)),
                   ...(item.quals || []).map(r => n(r.score)),
-                  ...(item.feedback || []).map(r => n(r.score)),
+                  ...(item.feedback || []).map(r => feedbackRowScore(r, 10)),
                   ...(item.deptActs || []).map(r => n(r.score)),
                   ...(item.uniActs || []).map(r => n(r.score)),
                   ...(item.society || []).map(r => n(r.score)),

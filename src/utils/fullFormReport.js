@@ -1,3 +1,6 @@
+import { cloudinaryDocumentViewUrl } from "../services/cloudinary";
+import { feedbackRowScore } from "./appraisalFormUtils";
+
 const n = (value) => parseFloat(value) || 0;
 
 export const safeHtml = (value) => String(value ?? "")
@@ -24,14 +27,20 @@ const docsFor = (docs, key) => {
   if (!files.length) return "&nbsp;";
   return files.map((file) => {
     const label = safeHtml(file.name || file.url || "Document");
-    return file.url
-      ? `<a href="${safeHtml(file.url)}" target="_blank" rel="noreferrer">${label}</a>`
+    const url = cloudinaryDocumentViewUrl(file);
+    return url
+      ? `<a href="${safeHtml(url)}" target="_blank" rel="noreferrer">${label}</a>`
       : label;
   }).join("<br/>");
 };
 
 const roleColumnLabel = (role, roleLabel = (value) => value) =>
   role === "score" ? "Faculty Score" : `${safeHtml(roleLabel(role))} Score`;
+
+const reportScoreValue = (section, row, role) =>
+  section.key === "feedback" && role === "score"
+    ? feedbackRowScore(row, section.max).toFixed(1)
+    : row?.[role];
 
 const renderSection = ({ section, rows = [], docs = {}, scoreRoles = ["score"], roleLabel }) => `
   <h3>${safeHtml(section.title)} <span>(Max ${safeHtml(section.max)})</span></h3>
@@ -50,7 +59,7 @@ const renderSection = ({ section, rows = [], docs = {}, scoreRoles = ["score"], 
           <td class="center">${index + 1}</td>
           ${section.fields.map(([key]) => `<td>${displayValue(row?.[key])}</td>`).join("")}
           <td>${docsFor(docs, `${section.doc}-${index}`)}</td>
-          ${scoreRoles.map((role) => `<td class="center">${displayValue(row?.[role])}</td>`).join("")}
+          ${scoreRoles.map((role) => `<td class="center">${displayValue(reportScoreValue(section, row, role))}</td>`).join("")}
         </tr>
       `).join("")}
     </tbody>
@@ -110,7 +119,7 @@ export const openFullFormReport = ({
 <head>
   <title>${safeHtml(title)}</title>
   <style>
-    @page { size: A4; margin: 16mm; }
+    @page { size: A4; margin: 18mm 16mm 16mm; }
     body { font-family: "Times New Roman", Georgia, serif; font-size: 12px; color: #0f172a; }
     h1 { text-align: center; margin: 0 0 6px; font-size: 22px; }
     h2 { margin: 24px 0 10px; border-bottom: 2px solid #0f172a; padding-bottom: 5px; font-size: 16px; }
@@ -127,9 +136,11 @@ export const openFullFormReport = ({
     .summary td, .summary th { font-size: 13px; }
     .total { font-weight: 800; background: #f8fafc; }
     .remarks { white-space: pre-wrap; border: 1px solid #94a3b8; padding: 10px; min-height: 50px; }
+    .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
   </style>
 </head>
 <body>
+  <img class="print-logo" src="/image.png" alt="DYPIU logo" />
   <h1>${safeHtml(title)}</h1>
   ${subtitle ? `<div class="subtitle">${safeHtml(subtitle)}</div>` : ""}
   <table class="meta">

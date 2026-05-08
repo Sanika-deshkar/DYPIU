@@ -6,6 +6,7 @@ import {
 } from "../constants/nonTeachingHierarchy";
 import { profileFromsessionStorage } from "../utils/hierarchy";
 import { clampScore, stripTransientDocUrls } from "../utils/appraisalFormUtils";
+import { cloudinaryDocumentViewUrl } from "./cloudinary";
 import { supabase } from "./supabase";
 
 export const NON_TEACHING_STATUS = {
@@ -747,8 +748,11 @@ export const openNonTeachingReport = ({
   const docsFor = (key) =>
     (reportForm.docs?.[key] || [])
       .map(
-        (file) =>
-          `<a href="${escapeHtml(file.url)}" target="_blank">${escapeHtml(file.name || file.url)}</a>`,
+        (file) => {
+          const url = cloudinaryDocumentViewUrl(file);
+          const label = escapeHtml(file.name || url || "Document");
+          return url ? `<a href="${escapeHtml(url)}" target="_blank">${label}</a>` : label;
+        },
       )
       .join("<br>") || "-";
 
@@ -808,10 +812,13 @@ export const openNonTeachingReport = ({
           .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
           .total { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
           .score { font-size: 18px; font-weight: 800; color: #1d4ed8; }
+          .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
+          @page { size: A4; margin: 18mm 14mm 14mm; }
           @media print { button { display: none; } body { padding: 10px; } }
         </style>
       </head>
       <body>
+        <img class="print-logo" src="/image.png" alt="DYPIU logo" />
         <button onclick="window.print()" style="float:right;padding:8px 14px;">Print</button>
         <h1>Non-Teaching Staff Appraisal Report</h1>
         <div class="muted">${escapeHtml(APP_INFO.UNIVERSITY_NAME)} | Academic Year ${escapeHtml(reportForm.info?.ay || item.academicYear)}</div>
