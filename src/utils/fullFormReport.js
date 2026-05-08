@@ -136,12 +136,14 @@ export const openFullFormReport = ({
     .summary td, .summary th { font-size: 13px; }
     .total { font-weight: 800; background: #f8fafc; }
     .remarks { white-space: pre-wrap; border: 1px solid #94a3b8; padding: 10px; min-height: 50px; }
-    .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
+    .print-logo { float: right; width: 24mm; height: auto; margin: 0 0 4px 12px; }
+    .header-clear { clear: both; }
   </style>
 </head>
 <body>
   <img class="print-logo" src="/image.png" alt="DYPIU logo" />
   <h1>${safeHtml(title)}</h1>
+  <div class="header-clear"></div>
   ${subtitle ? `<div class="subtitle">${safeHtml(subtitle)}</div>` : ""}
   <table class="meta">
     <tbody>

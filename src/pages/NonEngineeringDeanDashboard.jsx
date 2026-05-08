@@ -1946,7 +1946,8 @@ export default function NonEngineeringDeanDashboard() {
       .center { text-align: center; }
       .total { font-weight: bold; font-size: 13px; }
       .page-break { page-break-before: always; }
-      .print-logo { position: fixed; top: 6mm; left: 6mm; width: 24mm; height: auto; z-index: 10; }
+      .print-logo { float: right; width: 24mm; height: auto; margin: 0 0 4px 12px; }
+      .header-clear { clear: both; }
 
       .info td {
         border: none;
@@ -1959,6 +1960,7 @@ export default function NonEngineeringDeanDashboard() {
     <img class="print-logo" src="/image.png" alt="DYPIU logo" />
 
     <h1>Faculty Appraisal Report</h1>
+    <div class="header-clear"></div>
 
     <!-- PERSONAL INFO -->
     <table class="info">
