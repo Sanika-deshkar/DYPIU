@@ -22,6 +22,7 @@ import {
   saveDraft,
   scoreRemaining,
   sumSectionScore,
+  averageSectionScore,
   validateCompleteRows,
 } from "../utils/appraisalFormUtils";
 import { getReviewChain, pendingStatusFor, profileFromsessionStorage, reviewedStatusFor, roleLabel } from "../utils/hierarchy";
@@ -30,8 +31,8 @@ const ACCENT = "#b45309";
 const ACCENT2 = "#0f766e";
 const VERIFY_TEXT = "I have verified all the details and confirm that the information provided is correct. I am responsible for the accuracy of this data.";
 const PART_A_MAX = 200;
-const PART_B_MAX = 355;
-const GRAND_MAX = 555;
+const PART_B_MAX = 375;
+const GRAND_MAX = 575;
 const SECTION_OPTIONS = [
   { value: "partA", label: "Part-A Section" },
   { value: "partB", label: "Part-B Section" },
@@ -67,6 +68,19 @@ const ACR_LABELS = [
   "Obedience",
 ];
 
+const INNOV_METHODS = [
+  "Flipped Classroom",
+  "Project-Based Learning",
+  "Case Study Method",
+  "Blended / Online Learning",
+  "Peer Teaching / Group Discussion",
+  "Design Thinking Workshop",
+  "Experiential Learning / Field Visit",
+  "ICT-Integrated Teaching",
+  "Mind Mapping / Concept Mapping",
+  "Simulation / Role Play",
+];
+
 const emptyMediaForm = () => ({
   info: {
     name: sessionStorage.getItem("name") || "",
@@ -77,6 +91,7 @@ const emptyMediaForm = () => ({
   },
   lectures: [{ sem: "", code: "", planned: "", conducted: "", score: "" }],
   courseFile: [{ course: "", title: "", details: "", score: "" }],
+  innovMethods: [],
   innovDetails: "",
   innovScore: "",
   projects: [
@@ -92,7 +107,7 @@ const emptyMediaForm = () => ({
   feedback: [{ code: "", fb1: "", fb2: "", score: "" }],
   deptActs: [{ activity: "", nature: "", score: "" }],
   uniActs: [{ activity: "", nature: "", score: "" }],
-  society: SOCIETY_LABELS.map((label) => ({ label, details: "", score: "" })),
+  society: SOCIETY_LABELS.map((label) => ({ label, yes: false, details: "", score: "" })),
   acr: ACR_LABELS.map((label) => ({ label, score: "" })),
   journals: [{ title: "", journal: "", issn: "", index: "", score: "" }],
   popularWritings: [{ media: "", film: "", score: "" }],
@@ -113,31 +128,31 @@ const emptyMediaForm = () => ({
 const cloneRows = (rows) => JSON.parse(JSON.stringify(rows || []));
 
 const PART_A_SECTIONS = [
-  { key: "lectures", title: "A(i). Lectures / Tutorials / Practicals", max: 50, doc: "lec", fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
-  { key: "courseFile", title: "A(ii). Course File", max: 20, doc: "cf", fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
-  { key: "projects", title: "A(iv). Project Guidance", max: 10, doc: "proj", fields: [["label", "Project Category", true]] },
-  { key: "quals", title: "A(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category", true]] },
-  { key: "feedback", title: "Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
-  { key: "deptActs", title: "Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
-  { key: "uniActs", title: "University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
-  { key: "society", title: "Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity", true], ["details", "Details"]] },
-  { key: "acr", title: "Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter", true]], selfReadOnlyScore: true },
+  { key: "lectures", title: "(i). Lectures / Tutorials / Practicals", max: 50, doc: "lec", useAverage: true, fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
+  { key: "courseFile", title: "(ii). Course File", max: 20, doc: "cf", useAverage: true, fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
+  { key: "projects", title: "(iv). Project Guidance", max: 10, doc: "proj", fields: [["label", "Project Category", true]] },
+  { key: "quals", title: "(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category", true]], rowMaxByLabel: { "Higher Qualification achieved": 5, "Add-on Qualification / Certification": 5 } },
+  { key: "feedback", title: "B. Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
+  { key: "deptActs", title: "C. Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "uniActs", title: "D. University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "society", title: "E. Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity", true], ["details", "Details"]] },
+  { key: "acr", title: "F. Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter", true]], selfReadOnlyScore: true },
 ];
 
 const PART_B_SECTIONS = [
-  { key: "journals", title: "B1(i). Published Papers in Journals", max: 80, doc: "jour", fields: [["title", "Title with Page Nos."], ["journal", "Journal Details"], ["issn", "ISSN No."], ["index", "Indexing"]] },
-  { key: "popularWritings", title: "B1(ii). Popular Writings, Film & Documentary", max: 40, doc: "pop", fields: [["media", "Newspaper / Magazine / Website"], ["film", "Film / Documentary"]] },
-  { key: "books", title: "B2. Articles / Chapters in Books", max: 60, doc: "book", fields: [["title", "Title"], ["book", "Book & Publisher"], ["isbn", "ISBN"], ["publisher", "Type"], ["coAuthors", "Co-authors"], ["first", "First Author?"]] },
-  { key: "ict", title: "B3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 30, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
-  { key: "research", title: "B4(a). Research Guidance - PhD / PG", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
-  { key: "internalProjects", title: "B4(b). Internal Research Projects", max: 15, doc: "int", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "externalProjects", title: "B4(c). External Research Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "awards", title: "B4(d). Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
-  { key: "confs", title: "B5. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
-  { key: "proposals", title: "B6(a). Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
-  { key: "products", title: "B6(b). Products Developed / Used", max: 20, doc: "prod", fields: [["details", "Product Details"], ["used", "Used / Adopted"]] },
-  { key: "fdps", title: "B7. FDP / Self Development", max: 20, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
-  { key: "training", title: "B8. Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]] },
+  { key: "journals", title: "1 (i). Published Papers in Journals", max: 80, doc: "jour", fields: [["title", "Title with Page Nos."], ["journal", "Journal Details"], ["issn", "ISSN No."], ["index", "Indexing"]] },
+  { key: "popularWritings", title: "1 (ii). Popular Writings, Film & Documentary", max: 40, doc: "pop", fields: [["media", "Newspaper / Magazine / Website"], ["film", "Film / Documentary"]] },
+  { key: "books", title: "2. Articles / Chapters in Books", max: 60, doc: "book", fields: [["title", "Title"], ["book", "Book & Publisher"], ["isbn", "ISBN"], ["publisher", "Type"], ["coAuthors", "Co-authors"], ["first", "First Author?"]] },
+  { key: "ict", title: "3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 30, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
+  { key: "research", title: "4 (a). Research Guidance - PhD / PG", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
+  { key: "internalProjects", title: "4 (b). Internal Research Projects", max: 15, doc: "int", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "externalProjects", title: "4 (c). External Research Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "awards", title: "5. Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
+  { key: "confs", title: "6. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
+  { key: "proposals", title: "7 (a). Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
+  { key: "products", title: "7 (b). Products Developed / Used", max: 20, doc: "prod", fields: [["details", "Product Details"], ["used", "Used / Adopted"]] },
+  { key: "fdps", title: "8 (a). FDP / Self Development", max: 10, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]], rowMax: 5 },
+  { key: "training", title: "8 (b). Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]], rowMax: 5 },
 ];
 
 const ALL_ARRAY_KEYS = [...PART_A_SECTIONS, ...PART_B_SECTIONS].map((section) => section.key);
@@ -149,20 +164,50 @@ const scoreKeyForInnov = (role) => ({
   vc: "innovVc",
 }[role] || "innovScore");
 
+const calcFbScore = (rows, max) => {
+  const filled = (rows || []).filter(r => r.fb1 || r.fb2);
+  if (!filled.length) return 0;
+  const avg = filled.reduce((a, r) => {
+    const cnt = (r.fb1 ? 1 : 0) + (r.fb2 ? 1 : 0);
+    return a + (n(r.fb1) + n(r.fb2)) / (cnt || 1) / 10;
+  }, 0) / filled.length;
+  return Math.min(max, avg);
+};
+
+const calcInnovScore = (form) => Math.min(10, (form.innovMethods || []).length * 2);
+
 const calculateMediaTotals = (form, scoreKey = "score") => {
   const applicability = form.sectionApplicability || {};
   const maxScores = getMediaEffectiveMaxScores(form);
+  const isSelf = scoreKey === "score";
   const rowSum = (key, max) => applicability[key] === "notApplicable" ? 0 : sumSectionScore(form[key] || [], max, scoreKey);
+  const avgSum = (key, max) => applicability[key] === "notApplicable" ? 0 : averageSectionScore(form[key] || [], max, scoreKey);
+  const perRowSum = (key, sectionMax, getRowMax) => {
+    if (applicability[key] === "notApplicable") return 0;
+    return Math.min(sectionMax, (form[key] || []).reduce((a, r) => a + Math.min(getRowMax(r), n(r[scoreKey] ?? r.score ?? "")), 0));
+  };
+  const courseFileEarned = avgSum("courseFile", 20);
+  const innovEarned = isSelf ? calcInnovScore(form) : clampScore(form[scoreKeyForInnov(scoreKey)], 10);
+  const qualsEarned = isSelf
+    ? Math.min(10, (form.quals || []).reduce((a, r) => a + Math.min(r.label === "Higher Qualification achieved" ? 5 : r.label === "Add-on Qualification / Certification" ? 5 : 5, n(r.score)), 0))
+    : rowSum("quals", 10);
+  const societyEarned = Math.min(10, (form.society || []).filter(r => r.yes).reduce((a, r) => a + Math.min(5, n(r[scoreKey] ?? r.score ?? "")), 0));
+  const researchEarned = perRowSum("research", 30, r => r.degree === "PhD" ? 10 : r.degree === "PG" ? 5 : 10);
+  const fdpsEarned = perRowSum("fdps", 10, () => 5);
+  const trainingEarned = perRowSum("training", 10, () => 5);
   const partA = clampScore(
-    rowSum("lectures", 50) + rowSum("courseFile", 20) + clampScore(scoreKey === "score" ? form.innovScore : form[scoreKeyForInnov(scoreKey)], 10) +
-    rowSum("projects", 10) + rowSum("quals", 10) + (scoreKey === "score" ? feedbackSectionScore(form.feedback, 10) : rowSum("feedback", 10)) +
-    rowSum("deptActs", 20) + rowSum("uniActs", 30) + rowSum("society", 10) + rowSum("acr", 25),
+    avgSum("lectures", 50) + courseFileEarned + innovEarned +
+    rowSum("projects", 10) + qualsEarned + (isSelf ? calcFbScore(form.feedback, 10) : rowSum("feedback", 10)) +
+    rowSum("deptActs", 20) + rowSum("uniActs", 30) + societyEarned + rowSum("acr", 25),
     maxScores.partA,
   );
-  const partB = clampScore(
-    PART_B_SECTIONS.reduce((total, section) => total + rowSum(section.key, section.max), 0),
-    maxScores.partB,
-  );
+  const partBBase = PART_B_SECTIONS.reduce((total, section) => {
+    if (section.key === "research") return total + researchEarned;
+    if (section.key === "fdps") return total + fdpsEarned;
+    if (section.key === "training") return total + trainingEarned;
+    return total + rowSum(section.key, section.max);
+  }, 0);
+  const partB = clampScore(partBBase, maxScores.partB);
   return { partA, partB, total: clampScore(partA + partB, maxScores.grand), maxScores };
 };
 
@@ -215,8 +260,8 @@ const validateMediaBeforeSubmit = (form, sectionView = "all") => {
   });
 
   if (sectionView !== "partB") {
-    if (form.innovDetails && !form.innovScore) errors.push("A(iii). Innovative Teaching Methods: score is required.");
-    if (form.innovScore && !form.innovDetails) errors.push("A(iii). Innovative Teaching Methods: details are required.");
+    if (form.innovDetails && !form.innovScore) errors.push("(iii). Innovative Teaching Methods: score is required.");
+    if (form.innovScore && !form.innovDetails) errors.push("(iii). Innovative Teaching Methods: details are required.");
   }
 
   return errors;
@@ -288,33 +333,54 @@ function DocCell({ id, docs, setDocs, readOnly }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {files.map((file, index) => (
-        <div key={`${file.name}-${index}`} style={{ display: "flex", alignItems: "center", gap: 5, background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: 4, padding: "2px 6px" }}>
-          <a {...documentLinkProps(file)} style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", color: ACCENT, textDecoration: "none", fontSize: 10 }}>{file.name}</a>
-          {!readOnly && <button type="button" onClick={() => removeFile(index)} style={{ border: 0, background: "transparent", color: "#dc2626", cursor: "pointer" }}>x</button>}
+        <div key={`${file.name}-${index}`} style={{ display: "flex", alignItems: "center", gap: 4, background: "#f0f9ff", border: "1px solid #0ea5e9", borderRadius: 4, padding: "2px 6px" }}>
+          <span style={{ color: "#0ea5e9", fontSize: 10, fontWeight: 700 }}>File</span>
+          <span style={{ fontSize: 10, color: "#1e293b", flex: 1, overflow: "hidden", textOverflow: "ellipsis" }} title={file.name}>{file.name}</span>
+          {!readOnly && <button type="button" onClick={() => removeFile(index)} style={{ border: 0, background: "transparent", color: "#dc2626", cursor: "pointer", fontSize: 10 }}>Remove</button>}
         </div>
       ))}
       {!readOnly && (
-        <button type="button" onClick={() => ref.current?.click()} disabled={uploading} style={{ border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#475569", borderRadius: 4, padding: "5px", cursor: "pointer", fontSize: 10 }}>
-          {uploading ? "Uploading..." : "Attach"}
-          <input ref={ref} type="file" style={{ display: "none" }} onChange={(event) => handleFiles(event.target.files)} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, cursor: uploading ? "wait" : "pointer", padding: "4px 6px", border: "1px dashed #cbd5e1", borderRadius: 4, background: "#f8fafc", opacity: uploading ? 0.7 : 1 }} onClick={() => !uploading && ref.current?.click()}>
+          <span style={{ fontSize: 10, color: "#64748b" }}>{uploading ? "Uploading..." : "Attach"}</span>
+          <input ref={ref} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx" style={{ display: "none" }} onChange={(event) => handleFiles(event.target.files)} />
+        </div>
       )}
       {readOnly && !files.length && <span style={{ color: "#94a3b8", fontSize: 10 }}>No docs</span>}
     </div>
   );
 }
 
+function ViewDocsCell({ id, docs }) {
+  const files = docs?.[id] || [];
+  if (!files.length) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {files.map((f, i) => (
+        <a key={i} {...documentLinkProps(f)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#3b82f6", fontSize: 10, textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" }}
+          title={f.name}
+        >
+          {f.type?.startsWith("image/") && (
+            <img src={f.previewUrl || f.url} alt="" style={{ width: 22, height: 22, objectFit: "cover", borderRadius: 3 }} />
+          )}
+          {`View ${f.name?.length > 14 ? f.name.slice(0, 14) + "..." : f.name}`}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function SectionShell({ title, max, earned = 0, children, accent = ACCENT }) {
   return (
-    <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderTop: `3px solid ${accent}`, borderRadius: 8, overflow: "hidden", marginBottom: 14 }}>
-      <div style={{ padding: "10px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontWeight: 800, color: accent, fontSize: 13 }}>{title}</div>
-        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
-          <div>Earned Score: {clampScore(earned, max).toFixed(1)} / {max}</div>
-          <div>Remaining Credits: {scoreRemaining(earned, max).toFixed(1)}</div>
+    <section style={{ background: "#fff", borderRadius: 9, boxShadow: "0 1px 3px rgba(0,0,0,.06)", marginBottom: 14, overflow: "hidden", border: "1px solid #e2e8f0", borderTop: `3px solid ${accent}` }}>
+      <div style={{ padding: "10px 15px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: accent }}>
+          {title}
+          <span style={{ fontWeight: 600, color: "#64748b", fontSize: 11, marginLeft: 8 }}>— Max {max} marks</span>
         </div>
+        <div style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>Earned: {clampScore(earned, max).toFixed(1)} / {max}</div>
       </div>
-      <div style={{ padding: 12 }}>{children}</div>
+      <div style={{ padding: "13px 15px" }}>{children}</div>
     </section>
   );
 }
@@ -328,14 +394,48 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
   const applicability = form.sectionApplicability || {};
   const notApplicable = applicability[section.key] === "notApplicable";
   const canToggleApplicability = editableSelf && ["projects", "research"].includes(section.key);
-  const earned = section.key === "feedback"
-    ? feedbackSectionScore(rows, section.max)
-    : notApplicable ? 0 : sumSectionScore(rows, section.max);
+
+  const getRowScore = (row) => {
+    if (section.autoScore) return (row.course || row.title || row.details || row.program || row.company || row.activity) ? section.autoScore : 0;
+    if (section.key === "society") return (row.yes != null ? row.yes : n(row.score) > 0) ? 5 : 0;
+    if (section.key === "research") return n(row.score);
+    return n(row.score);
+  };
+  const getRowMax = (row) => {
+    if (section.key === "society") return 5;
+    if (section.rowMaxByLabel) return section.rowMaxByLabel[row.label] ?? section.max;
+    if (section.rowMax) return section.rowMax;
+    if (section.key === "research") return row.degree === "PhD" ? 10 : row.degree === "PG" ? 5 : 10;
+    return section.max;
+  };
+
+  const earned = (() => {
+    if (notApplicable) return 0;
+    if (section.key === "feedback") return calcFbScore(rows, section.max);
+    if (section.useAverage) return averageSectionScore(rows, section.max);
+    if (section.autoScore) return Math.min(section.max, rows.filter(r => r.course || r.title || r.details || r.program || r.company).length * section.autoScore);
+    if (section.key === "society") return Math.min(section.max, rows.filter(r => r.yes).reduce((a, r) => a + Math.min(5, n(r.score)), 0));
+    if (section.rowMaxByLabel || section.rowMax || section.key === "research") return Math.min(section.max, rows.reduce((a, r) => a + Math.min(getRowMax(r), n(r.score)), 0));
+    return sumSectionScore(rows, section.max);
+  })();
 
   if (mode === "review" && notApplicable) return null;
 
   const updateRow = (index, key, value) => {
-    const nextValue = key === "date" ? maskDateDDMMYYYY(value) : key === "score" ? clampScore(value, section.max) : value;
+    if (section.autoScore && key !== "date") {
+      setForm((prev) => {
+        const updated = (prev[section.key] || []).map((row, i) => {
+          if (i !== index) return row;
+          const next = { ...row, [key]: value };
+          const hasContent = next.course || next.title || next.details || next.program || next.company || next.activity;
+          return { ...next, score: hasContent ? String(section.autoScore) : "" };
+        });
+        return { ...prev, [section.key]: updated };
+      });
+      return;
+    }
+    const rowMax = getRowMax(rows[index] || {});
+    const nextValue = key === "date" ? maskDateDDMMYYYY(value) : key === "score" ? clampScore(value, rowMax) : value;
     setForm((prev) => ({
       ...prev,
       [section.key]: (prev[section.key] || []).map((row, rowIndex) => rowIndex === index ? { ...row, [key]: nextValue } : row),
@@ -392,33 +492,42 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
             <tr>
               <th style={thStyle}>SN</th>
               {section.fields.map(([, label]) => <th key={label} style={thStyle}>{label}</th>)}
-              {section.key === "feedback" && <th style={thStyle}>Average</th>}
-              <th style={thStyle}>Documents</th>
+              {section.key === "feedback" && <th style={thStyle}>Average Score</th>}
+              {section.key === "society" && <th style={thStyle}>Yes/No</th>}
+              <th style={thStyle}>Attachment</th>
+              <th style={thStyle}>View Docs</th>
               <th style={thStyle}>Faculty Score</th>
-              {mode === "review" && previousRoles.map((role) => <th key={role} style={thStyle}>{roleLabel(role)} Score</th>)}
-              {mode === "review" && <th style={thStyle}>{roleLabel(currentRole)} Score</th>}
+              {mode === "review" && previousRoles.map((role) => <th key={role} style={thStyleHod}>{roleLabel(role)} Score</th>)}
+              {mode === "review" && <th style={thStyleHod}>{roleLabel(currentRole)} Score</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={`${section.key}-${index}`}>
+              <tr key={`${section.key}-${index}`} style={index % 2 === 1 ? { background: "#f8fafc" } : {}}>
                 <td style={tdCenter}>{index + 1}</td>
                 {section.fields.map(([key, , readOnlyField]) => (
                   <td key={key} style={tdStyle}>
-                    {mode !== "self" ? <RO value={row[key]} /> : key === "first" ? (
+                    {mode !== "self" ? <RO value={row[key]} /> : (key === "first") || (key === "degree" && section.key === "research") ? (
                       <select
                         value={row[key] || ""}
                         disabled={!editableSelf || readOnlyField || notApplicable}
-                        onChange={(event) => updateRow(index, key, event.target.value)}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          if (key === "degree" && section.key === "research") {
+                            const autoScore = val === "PhD" ? "10" : val === "PG" ? "5" : "";
+                            setForm(prev => ({ ...prev, research: (prev.research || []).map((r, j) => j === index ? { ...r, degree: val, score: autoScore } : r) }));
+                          } else {
+                            updateRow(index, key, val);
+                          }
+                        }}
                         style={{ width: "100%", height: 30, border: "1px solid #cbd5e1", borderRadius: 4, background: "#fff", fontFamily: "Georgia, serif", fontSize: 11 }}
                       >
                         <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
+                        {key === "degree" ? <><option value="PhD">PhD</option><option value="PG">PG</option></> : <><option value="Yes">Yes</option><option value="No">No</option></>}
                       </select>
                     ) : (
                       <>
-                        <TI value={row[key]} readOnly={!editableSelf || readOnlyField || notApplicable} onChange={(value) => updateRow(index, key, value)} />
+                        <TI value={row[key]} readOnly={!editableSelf || readOnlyField || notApplicable || (section.key === "society" && !(row.yes != null ? row.yes : n(row.score) > 0) && key !== "label")} onChange={(value) => updateRow(index, key, value)} />
                         {section.key === "acr" && key === "label" && ACR_DETAIL_POINTS[row[key]] && (
                           <ul style={{ margin: "5px 0 0 16px", padding: 0, color: "#64748b", fontSize: 10, lineHeight: 1.5 }}>
                             {ACR_DETAIL_POINTS[row[key]].map((point) => <li key={point}>{point}</li>)}
@@ -431,30 +540,61 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
                     )}
                   </td>
                 ))}
-                {section.key === "feedback" && <td style={tdCenter}>{feedbackAverage(row).toFixed(2)}</td>}
-                <td style={tdStyle}><DocCell id={`${section.doc}-${index}`} docs={docs} setDocs={setDocs} readOnly={!editableSelf || notApplicable} /></td>
-                <td style={tdCenter}>
+                {section.key === "feedback" && <td style={tdCenter}>{feedbackAverage(row) ? feedbackAverage(row).toFixed(2) : ""}</td>}
+                {section.key === "society" && (
+                  <td style={tdCenter}>
+                    <select
+                      value={(row.yes != null ? row.yes : n(row.score) > 0) ? "yes" : "no"}
+                      disabled={!editableSelf}
+                      onChange={e => { const isYes = e.target.value === "yes"; setForm(prev => ({ ...prev, society: (prev.society || []).map((r, j) => j === index ? { ...r, yes: isYes, ...(isYes ? {} : { details: "", score: "" }) } : r) })); }}
+                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, border: "1px solid #cbd5e1", background: "#fff", cursor: editableSelf ? "pointer" : "default" }}
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </td>
+                )}
+                <td style={tdStyle}><DocCell id={`${section.doc}-${index}`} docs={docs} setDocs={setDocs} readOnly={!editableSelf || notApplicable || (section.key === "society" && !(row.yes != null ? row.yes : n(row.score) > 0))} /></td>
+                <td style={tdStyle}><ViewDocsCell id={`${section.doc}-${index}`} docs={docs} /></td>
+                <td style={tdScore}>
                   {mode === "self"
                     ? section.key === "feedback"
-                      ? <RO value={feedbackRowScore(row, section.max).toFixed(1)} center />
-                      : <TI value={row.score} type="number" center readOnly={!editableSelf || section.selfReadOnlyScore || notApplicable} onChange={(value) => updateRow(index, "score", value)} />
-                    : <RO value={section.key === "feedback" ? feedbackRowScore(row, section.max).toFixed(1) : row.score} center />}
+                      ? <RO value={feedbackAverage(row) ? (feedbackAverage(row) / 10).toFixed(2) : ""} center />
+                      : section.autoScore
+                        ? <RO value={String(getRowScore(row) || "")} center />
+                        : <TI value={row.score} type="number" center readOnly={!editableSelf || section.selfReadOnlyScore || notApplicable || (section.key === "society" && !row.yes)} onChange={(value) => updateRow(index, "score", value)} />
+                    : <RO value={section.key === "feedback" ? (feedbackAverage(row) ? (feedbackAverage(row) / 10).toFixed(2) : "") : row.score} center />}
                 </td>
-                {mode === "review" && previousRoles.map((role) => <td key={role} style={tdCenter}><RO value={row[role]} center /></td>)}
+                {mode === "review" && previousRoles.map((role) => <td key={role} style={tdScoreHod}><RO value={row[role]} center /></td>)}
                 {mode === "review" && (
-                  <td style={tdCenter}>
+                  <td style={tdScoreHod}>
                     <TI type="number" center readOnly={reviewLocked} value={reviewRows[index]?.[currentRole] ?? row[currentRole] ?? ""} onChange={(value) => updateReview(index, value)} />
                   </td>
                 )}
               </tr>
             ))}
           </tbody>
+          {mode === "self" && (
+            <tfoot>
+              <tr>
+                <td
+                  colSpan={1 + section.fields.length + (section.key === "feedback" ? 1 : 0) + (section.key === "society" ? 1 : 0) + 2}
+                  style={{ textAlign: "center", fontWeight: 800, fontSize: 11, padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}
+                >
+                  {section.useAverage ? "Average" : section.key === "society" || section.rowMax || section.rowMaxByLabel || section.key === "research" ? "Total" : "Average"} Score (Max {notApplicable ? 0 : section.max})
+                </td>
+                <td style={{ textAlign: "center", fontWeight: 900, fontSize: 12, color: "#0f172a", padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}>
+                  {earned.toFixed(1)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
-      {editableSelf && !section.selfReadOnlyScore && !notApplicable && (
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={addRow} style={smallButton("#10b981")}>+ Add Row</button>
-          <button type="button" onClick={deleteRow} style={smallButton("#ef4444")}>Delete Last</button>
+      {editableSelf && !notApplicable && section.key !== "acr" && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button type="button" onClick={addRow} style={{ padding: "6px 12px", background: "#10b981", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>+ Add Row</button>
+          <button type="button" onClick={deleteRow} disabled={rows.length <= 1} style={{ padding: "6px 12px", background: rows.length <= 1 ? "#cbd5e1" : "#ef4444", color: "#fff", border: "none", borderRadius: 5, cursor: rows.length <= 1 ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 600 }}>- Delete Last</button>
         </div>
       )}
     </SectionShell>
@@ -467,13 +607,51 @@ function InnovativeSection({ form, setForm, docs, setDocs, mode, locked, reviewe
   const reviewLocked = mode === "review" && locked;
   const updateReview = (value) => setReviewData((prev) => ({ ...prev, innovativeTeaching: { ...(prev.innovativeTeaching || {}), [reviewerRole]: value } }));
 
+  const selectedMethods = form.innovMethods || [];
+  const autoScore = Math.min(10, selectedMethods.length * 2);
+
+  const toggleMethod = (method) => {
+    if (!editableSelf) return;
+    const next = selectedMethods.includes(method)
+      ? selectedMethods.filter(m => m !== method)
+      : [...selectedMethods, method];
+    const score = next.length > 0 ? String(Math.min(10, next.length * 2)) : "";
+    setForm(prev => ({ ...prev, innovMethods: next, innovScore: score, innovDetails: next.join(", ") }));
+  };
+
   return (
-    <SectionShell title="A(iii). Innovative Teaching Methods" max={10}>
+    <SectionShell title="(iii). Innovative Teaching Methods" max={10} earned={mode === "self" ? autoScore : n(form[scoreKeyForInnov(reviewerRole)])}>
+      {mode === "self" && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Select methods used — each method = 2 marks, max 10 (select up to 5):</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {INNOV_METHODS.map(method => {
+              const selected = selectedMethods.includes(method);
+              const atMax = selectedMethods.length >= 5 && !selected;
+              return (
+                <button
+                  key={method}
+                  type="button"
+                  disabled={!editableSelf || atMax}
+                  onClick={() => toggleMethod(method)}
+                  style={{ padding: "5px 12px", borderRadius: 20, border: `2px solid ${selected ? ACCENT : "#cbd5e1"}`, background: selected ? ACCENT : atMax ? "#f8fafc" : "#fff", color: selected ? "#fff" : atMax ? "#94a3b8" : "#475569", fontSize: 11, cursor: editableSelf && !atMax ? "pointer" : "default", fontWeight: selected ? 700 : 400, transition: "all 0.15s" }}
+                >
+                  {method} {selected ? "✓" : ""}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 11, color: ACCENT, fontWeight: 700 }}>
+            Selected: {selectedMethods.length} method(s) → Score: {autoScore} / 10
+          </div>
+        </div>
+      )}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
         <thead>
           <tr>
-            <th style={thStyle}>Short Description</th>
-            <th style={thStyle}>Documents</th>
+            <th style={thStyle}>Methods Selected</th>
+            <th style={thStyle}>Attachment</th>
+            <th style={thStyle}>View Docs</th>
             <th style={thStyle}>Faculty Score</th>
             {mode === "review" && previousRoles.map((role) => <th key={role} style={thStyle}>{roleLabel(role)} Score</th>)}
             {mode === "review" && <th style={thStyle}>{roleLabel(reviewerRole)} Score</th>}
@@ -481,23 +659,48 @@ function InnovativeSection({ form, setForm, docs, setDocs, mode, locked, reviewe
         </thead>
         <tbody>
           <tr>
-            <td style={tdStyle}>{mode === "self" ? <TI value={form.innovDetails} readOnly={!editableSelf} onChange={(value) => setForm((prev) => ({ ...prev, innovDetails: value }))} /> : <RO value={form.innovDetails} />}</td>
+            <td style={tdStyle}><RO value={form.innovDetails || (mode === "self" ? "No methods selected yet" : "-")} /></td>
             <td style={tdStyle}><DocCell id="innov-0" docs={docs} setDocs={setDocs} readOnly={!editableSelf} /></td>
-            <td style={tdCenter}>{mode === "self" ? <TI type="number" center value={form.innovScore} readOnly={!editableSelf} onChange={(value) => setForm((prev) => ({ ...prev, innovScore: value }))} /> : <RO value={form.innovScore} center />}</td>
+            <td style={tdStyle}><ViewDocsCell id="innov-0" docs={docs} /></td>
+            <td style={tdCenter}><RO value={mode === "self" ? (autoScore > 0 ? String(autoScore) : "") : (form.innovScore || "")} center /></td>
             {mode === "review" && previousRoles.map((role) => <td key={role} style={tdCenter}><RO value={form[scoreKeyForInnov(role)]} center /></td>)}
             {mode === "review" && <td style={tdCenter}><TI type="number" center readOnly={reviewLocked} value={reviewData.innovativeTeaching?.[reviewerRole] ?? form[currentScore] ?? ""} onChange={updateReview} /></td>}
           </tr>
         </tbody>
+        {mode === "self" && (
+          <tfoot>
+            <tr>
+              <td colSpan={3} style={{ textAlign: "center", fontWeight: 800, fontSize: 11, padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}>
+                Total Score (Max 10)
+              </td>
+              <td style={{ textAlign: "center", fontWeight: 900, fontSize: 12, color: "#0f172a", padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}>
+                {autoScore.toFixed(1)}
+              </td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </SectionShell>
   );
 }
 
 function MediaForm({ form, setForm, docs, setDocs, mode = "self", locked = false, reviewerRole = "", reviewData = {}, setReviewData = () => {}, previousRoles = [], sectionView = "partA" }) {
+  const totals = calculateMediaTotals(form, "score");
+  const maxScores = getMediaEffectiveMaxScores(form);
   return (
     <>
       {(sectionView === "partA" || sectionView === "all") && (
         <>
+          {mode === "self" && (
+            <div style={{ background: "#e8eaf6", borderRadius: 8, padding: "10px 16px", marginBottom: 10, fontSize: 13, fontWeight: 800, color: "#3730a3" }}>
+              Total Part A Score: {totals.partA.toFixed(1)}/{maxScores.partA}
+            </div>
+          )}
+          {mode === "self" && (
+            <div style={{ color: "#475569", fontSize: 12, marginBottom: 12 }}>
+              Fill in your teaching and academic activities for the appraisal period. Enter scores for each item.
+            </div>
+          )}
           <div style={{ fontWeight: 900, color: "#1e293b", background: "#fef3c7", padding: "9px 14px", borderRadius: 7, marginBottom: 12 }}>Part A - Teaching Process & Academic Activities</div>
           {PART_A_SECTIONS.slice(0, 2).map((section) => <SectionTable key={section.key} section={section} form={form} setForm={setForm} docs={docs} setDocs={setDocs} mode={mode} locked={locked} reviewerRole={reviewerRole} reviewData={reviewData} setReviewData={setReviewData} previousRoles={previousRoles} />)}
           <InnovativeSection form={form} setForm={setForm} docs={docs} setDocs={setDocs} mode={mode} locked={locked} reviewerRole={reviewerRole} reviewData={reviewData} setReviewData={setReviewData} previousRoles={previousRoles} />
@@ -560,11 +763,11 @@ function SectionSelector({ value, onChange, label = "Appraisal Section", isOptio
 
 function SectionSaveFooter({ label, saved, saving, locked, onSave }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-      <span style={{ color: saved ? "#047857" : "#64748b", fontSize: 12, fontWeight: 800 }}>
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ color: saved ? "#047857" : "#64748b", fontSize: 12, fontWeight: 700 }}>
         {locked ? "Submitted and locked" : saved ? `${label} saved. Next section unlocked.` : `Save ${label} to unlock the next section.`}
       </span>
-      <button type="button" onClick={onSave} disabled={locked || saving} style={smallButton(locked ? "#94a3b8" : "#2563eb")}>
+      <button type="button" onClick={onSave} disabled={locked || saving} style={{ padding: "9px 22px", background: locked ? "#94a3b8" : "#2563eb", color: "#fff", border: "none", borderRadius: 7, cursor: locked || saving ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 12, fontFamily: "Georgia, serif", opacity: saving ? 0.75 : 1 }}>
         {saving ? "Saving..." : `Save ${label}`}
       </button>
     </div>
@@ -743,6 +946,7 @@ export default function MediaCommDashboard({ fixedRole }) {
   const [sectionSaveStatus, setSectionSaveStatus] = useState({ partA: false, partB: false });
   const [savingSection, setSavingSection] = useState("");
   const [declaration, setDeclaration] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [reviews, setReviews] = useState([]);
   const userEmail = sessionStorage.getItem("username") || "";
   const academicYear = form.info?.ay || "2025-2026";
@@ -754,6 +958,7 @@ export default function MediaCommDashboard({ fixedRole }) {
   const setters = useMemo(() => Object.fromEntries([
     ["setInfo", (value) => setForm((prev) => ({ ...prev, info: { ...prev.info, ...value } }))],
     ...ALL_ARRAY_KEYS.map((key) => [`set${titleCase(key)}`, (value) => setForm((prev) => ({ ...prev, [key]: value }))]),
+    ["setInnovMethods", (value) => setForm((prev) => ({ ...prev, innovMethods: Array.isArray(value) ? value : [] }))],
     ["setInnovDetails", (value) => setForm((prev) => ({ ...prev, innovDetails: value }))],
     ["setInnovScore", (value) => setForm((prev) => ({ ...prev, innovScore: value }))],
     ["setInnovHod", (value) => setForm((prev) => ({ ...prev, innovHod: value }))],
@@ -984,31 +1189,49 @@ export default function MediaCommDashboard({ fixedRole }) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "Georgia, serif" }}>
-      <aside style={{ width: 230, height: "100vh", minHeight: "100vh", position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box", overflow: "hidden", background: "#0f172a", color: "#f8fafc", padding: "18px 12px", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ borderBottom: "1px solid #1e293b", paddingBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 900 }}>{APP_INFO.PORTAL_NAME}</div>
-          <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 3 }}>Media & Communication</div>
+      <aside style={{ width: 252, height: "100vh", minHeight: "100vh", position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box", overflow: "hidden", background: "#0f172a", color: "#f8fafc", padding: "22px 16px", display: "flex", flexDirection: "column", gap: 14, borderTopRightRadius: 18, borderBottomRightRadius: 18, marginRight: 8, boxShadow: "6px 0 20px rgba(15,23,42,0.18)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: "linear-gradient(135deg,#b45309,#0f766e)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>MC</div>
+          <div>
+            <div style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 13 }}>{APP_INFO.PORTAL_NAME}</div>
+            <div style={{ color: "#475569", fontSize: 9, lineHeight: 1.3 }}>Media & Communication</div>
+          </div>
         </div>
+        <div style={{ height: 1, background: "#1e293b" }} />
         {canSelfSubmit && (
           <>
-            <button onClick={() => { setActiveTab("my"); setReviewing(null); }} style={navButton(activeTab === "my")}>My Appraisal</button>
+            <button onClick={() => { setActiveTab("my"); setReviewing(null); }} style={navButton(activeTab === "my")}>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>My Appraisal</div>
+                <div style={{ color: "#64748b", fontSize: 10, marginTop: 1 }}>View your self-appraisal form</div>
+              </div>
+            </button>
             {activeTab === "my" && (
-              <label style={{ display: "grid", gap: 6, padding: "0 10px 4px 16px", fontSize: 10, color: "#94a3b8", fontWeight: 800 }}>
-                Appraisal Section
+              <div style={{ marginTop: 2, background: "#1e293b", borderRadius: 8, padding: "9px 10px" }}>
+                <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 6 }}>Appraisal Section</div>
                 <select
                   value={selfSectionView}
                   onChange={(event) => handleSelfSectionChange(event.target.value)}
-                  style={{ height: 34, border: "1px solid #334155", borderRadius: 7, background: "#1e293b", color: "#f8fafc", padding: "0 9px", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}
+                  style={{ width: "100%", border: "1px solid #334155", borderRadius: 7, padding: "7px 8px", fontSize: 12, fontFamily: "Georgia, serif", color: "#e2e8f0", background: "#0f172a", outline: "none" }}
                 >
                   {SECTION_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={!isSelfSectionOpen(option.value)}>{option.label}</option>)}
                 </select>
-              </label>
+              </div>
             )}
           </>
         )}
-        {role !== "faculty" && <button onClick={() => { setActiveTab("approvals"); setReviewing(null); }} style={navButton(activeTab === "approvals")}>Approvals ({pendingCount})</button>}
-        <div style={{ marginTop: "auto", borderTop: "1px solid #1e293b", paddingTop: 12, display: "grid", gap: 10 }}>
-          <button
+        {role !== "faculty" && (
+          <button onClick={() => { setActiveTab("approvals"); setReviewing(null); }} style={navButton(activeTab === "approvals")}>
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 12 }}>Approvals</div>
+              <div style={{ color: "#64748b", fontSize: 10, marginTop: 1 }}>Review pending submissions</div>
+            </div>
+            {pendingCount > 0 && <div style={{ background: "#f59e0b", color: "#fff", fontWeight: 800, fontSize: 10, minWidth: 18, height: 18, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{pendingCount}</div>}
+          </button>
+        )}
+        <div style={{ marginTop: "auto" }} />
+        <div style={{ height: 1, background: "#1e293b" }} />
+        <button
             type="button"
             onClick={() => navigate("/edit-profile")}
             title="Edit profile"
@@ -1025,19 +1248,18 @@ export default function MediaCommDashboard({ fixedRole }) {
             </div>
           </button>
           <button
-            onClick={() => navigate("/login", { replace: true })}
+            onClick={() => setShowLogoutModal(true)}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, background: "none", border: "1px solid #374151", borderRadius: 8, padding: "9px 11px", cursor: "pointer", fontFamily: "Georgia, serif" }}
             onMouseEnter={(event) => { event.currentTarget.style.background = "#1e293b"; }}
             onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
           >
             <span style={{ color: "#f87171", fontWeight: 700, fontSize: 12 }}>Logout</span>
           </button>
-        </div>
       </aside>
-      <main style={{ flex: 1, padding: "20px 24px", overflowX: "auto" }}>
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: 0, color: "#0f172a", fontSize: 21 }}>School of Media & Communication Studies</h2>
-          <div style={{ color: "#64748b", fontSize: 12, marginTop: 3 }}>{roleLabel(role)} workflow dashboard</div>
+      <main style={{ flex: 1, padding: "24px 30px", display: "flex", flexDirection: "column", gap: 18, overflowX: "auto" }}>
+        <div style={{ background: "#fff", borderRadius: 9, padding: "16px 20px", boxShadow: "0 1px 3px rgba(0,0,0,.06)", marginBottom: 4 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>School of Media & Communication Studies</h2>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b" }}>{roleLabel(role)} workflow dashboard</p>
         </div>
 
         {activeTab === "my" && canSelfSubmit && (
@@ -1119,13 +1341,31 @@ export default function MediaCommDashboard({ fixedRole }) {
           />
         )}
       </main>
+      {showLogoutModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowLogoutModal(false)}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "32px 36px", maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, fontFamily: "Georgia, serif" }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🚪</div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#0f172a", marginBottom: 6 }}>Confirm Logout</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>You are about to log out of <strong>{APP_INFO.PORTAL_NAME}</strong>.<br />Any unsaved changes will be lost.</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, width: "100%" }}>
+              <button onClick={() => setShowLogoutModal(false)} style={{ flex: 1, padding: "10px 0", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>Cancel</button>
+              <button onClick={() => { setShowLogoutModal(false); sessionStorage.clear(); navigate("/login", { replace: true }); }} style={{ flex: 1, padding: "10px 0", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>Yes, Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const thStyle = { border: "1px solid #cbd5e1", padding: "7px 8px", background: "#0f172a", color: "#e2e8f0", fontWeight: 800, textAlign: "center", fontSize: 10, whiteSpace: "nowrap" };
-const tdStyle = { border: "1px solid #e2e8f0", padding: "5px 7px", verticalAlign: "middle", minWidth: 120 };
+const thStyle = { border: "1px solid #cbd5e1", padding: "7px 8px", background: "#0f172a", color: "#cbd5e1", fontWeight: 700, textAlign: "center", fontSize: 10 };
+const thStyleHod = { ...thStyle, background: "#312e81", color: "#c7d2fe" };
+const tdStyle = { border: "1px solid #e2e8f0", padding: "4px 6px", verticalAlign: "middle", minWidth: 120 };
 const tdCenter = { ...tdStyle, textAlign: "center", minWidth: 70 };
+const tdScore = { ...tdCenter, background: "#f8fafc", minWidth: 52 };
+const tdScoreHod = { ...tdScore, background: "#f0f4ff" };
 const smallButton = (background) => ({ padding: "8px 14px", background, color: "#fff", border: "none", borderRadius: 7, cursor: background === "#94a3b8" ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 12, fontFamily: "Georgia, serif" });
-const navButton = (active) => ({ width: "100%", border: "none", borderLeft: `3px solid ${active ? ACCENT : "transparent"}`, background: active ? `${ACCENT}33` : "transparent", color: active ? "#fbbf24" : "#cbd5e1", borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "left", fontWeight: 800, fontFamily: "Georgia, serif" });
+const navButton = (active) => ({ width: "100%", border: "none", background: active ? "#1e293b" : "none", borderRadius: 9, padding: "10px 11px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, fontFamily: "Georgia, serif" });
 

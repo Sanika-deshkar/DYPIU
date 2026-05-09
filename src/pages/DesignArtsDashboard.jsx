@@ -21,7 +21,6 @@ import {
   loadDraft,
   maskDateDDMMYYYY,
   saveDraft,
-  scoreRemaining,
   sumSectionScore,
   validateCompleteRows,
 } from "../utils/appraisalFormUtils";
@@ -95,7 +94,7 @@ const emptyDesignArtsForm = () => ({
   feedback: [{ code: "", fb1: "", fb2: "", score: "" }],
   deptActs: [{ activity: "", nature: "", score: "" }],
   uniActs: [{ activity: "", nature: "", score: "" }],
-  society: SOCIETY_LABELS.map((label) => ({ label, details: "", score: "" })),
+  society: SOCIETY_LABELS.map((label) => ({ label, yes: false, details: "", score: "" })),
   industry: [{ name: "", details: "", score: "" }],
   acr: ACR_LABELS.map((label) => ({ label, score: "" })),
   journals: [{ title: "", journal: "", issn: "", index: "", score: "" }],
@@ -116,31 +115,31 @@ const emptyDesignArtsForm = () => ({
 const cloneRows = (rows) => JSON.parse(JSON.stringify(rows || []));
 
 const PART_A_SECTIONS = [
-  { key: "lectures", title: "A(i). Lectures / Tutorials / Practicals", max: 40, doc: "lec", fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
-  { key: "courseFile", title: "A(ii). Course File", max: 20, doc: "cf", fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
-  { key: "projects", title: "A(iv). Project Guidance", max: 20, doc: "proj", fields: [["label", "Project Category", true]] },
-  { key: "quals", title: "A(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category", true]] },
-  { key: "feedback", title: "Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
-  { key: "deptActs", title: "Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
-  { key: "uniActs", title: "University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
-  { key: "society", title: "Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity", true], ["details", "Details"]] },
-  { key: "industry", title: "Industry Connect", max: 5, doc: "ind", fields: [["name", "Name"], ["details", "Details"]] },
-  { key: "acr", title: "Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter", true]], selfReadOnlyScore: true },
+  { key: "lectures", title: "(i). Lectures / Tutorials / Practicals", max: 40, doc: "lec", useAverage: true, fields: [["sem", "Semester"], ["code", "Course Code / Name"], ["planned", "Planned"], ["conducted", "Conducted"]] },
+  { key: "courseFile", title: "(ii). Course File", max: 20, doc: "cf", useAverage: true, fields: [["course", "Course / Paper"], ["title", "Title"], ["details", "Details"]] },
+  { key: "projects", title: "(iv). Project Guidance", max: 20, doc: "proj", fields: [["label", "Project Category", true]], rowMaxByLabel: { "Project guided (3/batch)": 5, "Industrial collaboration / Sponsorship (Max 5)": 5, "Award received (Max 5 marks)": 5, "Project outcome: events/publications (Max 5)": 5 } },
+  { key: "quals", title: "(v). Qualification Enhancement", max: 10, doc: "qual", fields: [["label", "Category", true]], rowMaxByLabel: { "Higher Qualification achieved": 5, "Add-on Qualification / Certification": 5 } },
+  { key: "feedback", title: "B. Student Feedback", max: 10, doc: "fb", fields: [["code", "Course Code / Name"], ["fb1", "First Feedback"], ["fb2", "Second Feedback"]] },
+  { key: "deptActs", title: "C. Departmental / School Activities", max: 20, doc: "dept", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "uniActs", title: "D. University Level Activities", max: 30, doc: "uni", fields: [["activity", "Activity"], ["nature", "Nature"]] },
+  { key: "society", title: "E. Contribution to Society", max: 10, doc: "soc", fields: [["label", "Activity", true], ["details", "Details"]] },
+  { key: "industry", title: "F. Industry Connect", max: 5, doc: "ind", fields: [["name", "Name"], ["details", "Details"]] },
+  { key: "acr", title: "G. Annual Confidential Report - School Level", max: 25, doc: "acr", fields: [["label", "Parameter", true]], selfReadOnlyScore: true },
 ];
 
 const PART_B_SECTIONS = [
-  { key: "journals", title: "B1(i). Published Papers in Journals", max: 80, doc: "jour", fields: [["title", "Title with Page Nos."], ["journal", "Journal Details"], ["issn", "ISSN No."], ["index", "Indexing"]] },
-  { key: "books", title: "B2. Articles / Chapters in Books", max: 60, doc: "book", fields: [["title", "Title"], ["book", "Book & Publisher"], ["isbn", "ISBN"], ["publisher", "Type"], ["coAuthors", "Co-authors"], ["first", "First Author?"]] },
-  { key: "ict", title: "B3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 50, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
-  { key: "research", title: "B4(a). Research Guidance - PhD / PG", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
-  { key: "internalProjects", title: "B4(b). Internal Research Projects", max: 15, doc: "int", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "externalProjects", title: "B4(c). External Research / Consultancy Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
-  { key: "ipr", title: "B5(a). IPR / Copyright / Patent", max: 40, doc: "ipr", fields: [["title", "Title"], ["scope", "Scope"], ["date", "Date"], ["status", "Status"], ["fileNo", "File No."]] },
-  { key: "awards", title: "B5(b). Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
-  { key: "confs", title: "B6. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
-  { key: "proposals", title: "B7. Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
-  { key: "fdps", title: "B8(a). FDP / Self Development", max: 10, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
-  { key: "training", title: "B8(b). Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature", "Nature"]] },
+  { key: "journals", title: "1 (i). Published Papers in Journals", max: 80, doc: "jour", fields: [["title", "Title with Page Nos."], ["journal", "Journal Details"], ["issn", "ISSN No."], ["index", "Indexing"]] },
+  { key: "books", title: "2. Articles / Chapters in Books", max: 60, doc: "book", fields: [["title", "Title"], ["book", "Book & Publisher"], ["isbn", "ISBN"], ["publisher", "Type"], ["coAuthors", "Co-authors"], ["first", "First Author?"]] },
+  { key: "ict", title: "3. ICT Mediated Teaching-Learning Pedagogy / New Curricula", max: 50, doc: "ict", fields: [["title", "Title"], ["desc", "Short Description"], ["type", "Type / Link"], ["quad", "Quadrants"]] },
+  { key: "research", title: "4 (a). Research Guidance - PhD / PG", max: 30, doc: "res", fields: [["degree", "Degree"], ["name", "Student Name"], ["thesis", "Thesis / Status"]] },
+  { key: "internalProjects", title: "4 (b). Internal Research Projects", max: 15, doc: "int", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "externalProjects", title: "4 (c). External Research / Consultancy Projects", max: 30, doc: "ext", fields: [["title", "Title"], ["agency", "Funding Agency"], ["date", "Sanction Date"], ["amount", "Amount"], ["role", "Role"], ["status", "Status"]] },
+  { key: "ipr", title: "5 (a). IPR / Copyright / Patent", max: 40, doc: "ipr", fields: [["title", "Title"], ["scope", "Scope"], ["date", "Date"], ["status", "Status"], ["fileNo", "File No."]] },
+  { key: "awards", title: "5 (b). Research Awards", max: 10, doc: "awd", fields: [["title", "Title"], ["date", "Date"], ["agency", "Agency"], ["level", "Level"]] },
+  { key: "confs", title: "6. Conferences / Seminars / Workshops", max: 30, doc: "conf", fields: [["title", "Title"], ["type", "Type"], ["org", "Organization"], ["level", "Level"]] },
+  { key: "proposals", title: "7. Research Proposals", max: 10, doc: "prop", fields: [["title", "Title"], ["duration", "Duration"], ["agency", "Agency"], ["amount", "Amount"]] },
+  { key: "fdps", title: "8 (a). FDP / Self Development", max: 10, doc: "fdp", fields: [["program", "Program"], ["duration", "Duration"], ["org", "Organization"]] },
+  { key: "training", title: "8 (b). Industrial Training", max: 10, doc: "train", fields: [["company", "Company"], ["duration", "Duration"], ["nature","Nature"]] },
 ];
 
 const ALL_ARRAY_KEYS = [...PART_A_SECTIONS, ...PART_B_SECTIONS].map((section) => section.key);
@@ -152,13 +151,32 @@ const scoreKeyForInnov = (role) => ({
   vc: "innovVc",
 }[role] || "innovScore");
 
+const calcFbScore = (rows, max) => {
+  const filled = (rows || []).filter(r => r.fb1 || r.fb2);
+  if (!filled.length) return 0;
+  const avg = filled.reduce((a, r) => {
+    const cnt = (r.fb1 ? 1 : 0) + (r.fb2 ? 1 : 0);
+    return a + (n(r.fb1) + n(r.fb2)) / (cnt || 1) / 10;
+  }, 0) / filled.length;
+  return Math.min(max, avg);
+};
+
 const calculateDesignArtsTotals = (form, scoreKey = "score") => {
   const applicability = form.sectionApplicability || {};
   const maxScores = getDesignArtsEffectiveMaxScores(form);
   const rowSum = (key, max) => applicability[key] === "notApplicable" ? 0 : sumSectionScore(form[key] || [], max, scoreKey);
+  const perRowSum = (key, sectionMax, getRowMax) => {
+    if (applicability[key] === "notApplicable") return 0;
+    return Math.min(sectionMax, (form[key] || []).reduce((a, r) => a + Math.min(getRowMax(r), n(r[scoreKey] ?? r.score ?? "")), 0));
+  };
+  const projectsSection = PART_A_SECTIONS.find(s => s.key === "projects");
+  const qualsSection = PART_A_SECTIONS.find(s => s.key === "quals");
+  const avgSum = (key, max) => applicability[key] === "notApplicable" ? 0 : averageSectionScore(form[key] || [], max, scoreKey);
   const partA = clampScore(
-    rowSum("lectures", 40) + rowSum("courseFile", 20) + clampScore(scoreKey === "score" ? form.innovScore : form[scoreKeyForInnov(scoreKey)], 10) +
-    rowSum("projects", 20) + rowSum("quals", 10) + (scoreKey === "score" ? feedbackSectionScore(form.feedback, 10) : rowSum("feedback", 10)) +
+    avgSum("lectures", 40) + avgSum("courseFile", 20) + clampScore(scoreKey === "score" ? form.innovScore : form[scoreKeyForInnov(scoreKey)], 10) +
+    perRowSum("projects", 20, r => projectsSection?.rowMaxByLabel?.[r.label] ?? 20) +
+    perRowSum("quals", 10, r => qualsSection?.rowMaxByLabel?.[r.label] ?? 10) +
+    (scoreKey === "score" ? calcFbScore(form.feedback, 10) : rowSum("feedback", 10)) +
     rowSum("deptActs", 20) + rowSum("uniActs", 30) + rowSum("society", 10) + rowSum("industry", 5) + rowSum("acr", 25),
     maxScores.partA,
   );
@@ -218,8 +236,8 @@ const validateDesignArtsBeforeSubmit = (form, sectionView = "all") => {
   });
 
   if (sectionView !== "partB") {
-    if (form.innovDetails && !form.innovScore) errors.push("A(iii). Innovative Teaching Methods: score is required.");
-    if (form.innovScore && !form.innovDetails) errors.push("A(iii). Innovative Teaching Methods: details are required.");
+    if (form.innovDetails && !form.innovScore) errors.push("(iii). Innovative Teaching Methods: score is required.");
+    if (form.innovScore && !form.innovDetails) errors.push("(iii). Innovative Teaching Methods: details are required.");
   }
 
   return errors;
@@ -310,11 +328,10 @@ function DocCell({ id, docs, setDocs, readOnly }) {
 function SectionShell({ title, max, earned = 0, children, accent = ACCENT }) {
   return (
     <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderTop: `3px solid ${accent}`, borderRadius: 8, overflow: "hidden", marginBottom: 14 }}>
-      <div style={{ padding: "10px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontWeight: 800, color: accent, fontSize: 13 }}>{title}</div>
-        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 700, textAlign: "right" }}>
-          <div>Earned Score: {clampScore(earned, max).toFixed(1)} / {max}</div>
-          <div>Remaining Credits: {scoreRemaining(earned, max).toFixed(1)}</div>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontWeight: 800, color: accent, fontSize: 13 }}>
+          {title}
+          <span style={{ fontWeight: 600, color: "#64748b", fontSize: 11, marginLeft: 8 }}>— Max {max} marks</span>
         </div>
       </div>
       <div style={{ padding: 12 }}>{children}</div>
@@ -330,15 +347,28 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
   const currentRole = reviewerRole;
   const applicability = form.sectionApplicability || {};
   const notApplicable = applicability[section.key] === "notApplicable";
-  const canToggleApplicability = editableSelf && ["projects", "research"].includes(section.key);
+  const canToggleApplicability = ["projects", "research"].includes(section.key);
+  const getRowMax = (row) => {
+    if (section.key === "society") return 5;
+    if (section.rowMaxByLabel) return section.rowMaxByLabel[row.label] ?? section.max;
+    return section.max;
+  };
   const earned = section.key === "feedback"
-    ? feedbackSectionScore(rows, section.max)
-    : notApplicable ? 0 : sumSectionScore(rows, section.max);
+    ? calcFbScore(rows, section.max)
+    : notApplicable ? 0
+    : section.key === "society"
+      ? Math.min(section.max, rows.filter(r => r.yes).reduce((a, r) => a + Math.min(5, n(r.score)), 0))
+    : section.useAverage
+      ? averageSectionScore(rows, section.max)
+      : section.rowMaxByLabel
+        ? Math.min(section.max, rows.reduce((a, r) => a + Math.min(getRowMax(r), n(r.score)), 0))
+        : sumSectionScore(rows, section.max);
 
-  if (mode === "review" && notApplicable) return null;
+  if (mode === "review" && notApplicable && !canToggleApplicability) return null;
 
   const updateRow = (index, key, value) => {
-    const nextValue = key === "date" ? maskDateDDMMYYYY(value) : key === "score" ? clampScore(value, section.max) : value;
+    const rowMax = getRowMax(rows[index] || {});
+    const nextValue = key === "date" ? maskDateDDMMYYYY(value) : key === "score" ? clampScore(value, rowMax) : value;
     setForm((prev) => ({
       ...prev,
       [section.key]: (prev[section.key] || []).map((row, rowIndex) => rowIndex === index ? { ...row, [key]: nextValue } : row),
@@ -382,20 +412,21 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
       {canToggleApplicability && (
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 10, fontSize: 12, fontWeight: 800, color: "#334155" }}>
           {["applicable", "notApplicable"].map((value) => (
-            <label key={value} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={(applicability[section.key] || "applicable") === value} onChange={() => setApplicability(value)} />
+            <label key={value} style={{ display: "inline-flex", alignItems: "center", gap: 6, opacity: !editableSelf ? 0.7 : 1 }}>
+              <input type="checkbox" checked={(applicability[section.key] || "applicable") === value} disabled={!editableSelf} onChange={() => editableSelf && setApplicability(value)} />
               {value === "applicable" ? "Applicable" : "Not Applicable"}
             </label>
           ))}
         </div>
       )}
-      <div style={{ overflowX: "auto" }}>
+      {!notApplicable && <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
               <th style={thStyle}>SN</th>
               {section.fields.map(([, label]) => <th key={label} style={thStyle}>{label}</th>)}
               {section.key === "feedback" && <th style={thStyle}>Average</th>}
+              {section.key === "society" && <th style={thStyle}>Yes/No</th>}
               <th style={thStyle}>Documents</th>
               <th style={thStyle}>Faculty Score</th>
               {mode === "review" && previousRoles.map((role) => <th key={role} style={thStyle}>{roleLabel(role)} Score</th>)}
@@ -421,7 +452,7 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
                       </select>
                     ) : (
                       <>
-                        <TI value={row[key]} readOnly={!editableSelf || readOnlyField || notApplicable} onChange={(value) => updateRow(index, key, value)} />
+                        <TI value={row[key]} readOnly={!editableSelf || readOnlyField || notApplicable || (section.key === "society" && !(row.yes ?? Boolean(row.details || row.score)) && key !== "label")} onChange={(value) => updateRow(index, key, value)} />
                         {section.key === "acr" && key === "label" && ACR_DETAIL_POINTS[row[key]] && (
                           <ul style={{ margin: "5px 0 0 16px", padding: 0, color: "#64748b", fontSize: 10, lineHeight: 1.5 }}>
                             {ACR_DETAIL_POINTS[row[key]].map((point) => <li key={point}>{point}</li>)}
@@ -434,14 +465,27 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
                     )}
                   </td>
                 ))}
-                {section.key === "feedback" && <td style={tdCenter}>{feedbackAverage(row).toFixed(2)}</td>}
-                <td style={tdStyle}><DocCell id={`${section.doc}-${index}`} docs={docs} setDocs={setDocs} readOnly={!editableSelf || notApplicable} /></td>
+                {section.key === "feedback" && <td style={tdCenter}>{feedbackAverage(row) ? (feedbackAverage(row) / 10).toFixed(2) : ""}</td>}
+                {section.key === "society" && (
+                  <td style={tdCenter}>
+                    <select
+                      value={(row.yes ?? Boolean(row.details || row.score)) ? "yes" : "no"}
+                      disabled={!editableSelf}
+                      onChange={e => { const isYes = e.target.value === "yes"; setForm(prev => ({ ...prev, society: (prev.society || []).map((r, j) => j === index ? { ...r, yes: isYes, ...(isYes ? {} : { details: "", score: "" }) } : r) })); }}
+                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, border: "1px solid #cbd5e1", background: "#fff", cursor: editableSelf ? "pointer" : "default" }}
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  </td>
+                )}
+                <td style={tdStyle}><DocCell id={`${section.doc}-${index}`} docs={docs} setDocs={setDocs} readOnly={!editableSelf || notApplicable || (section.key === "society" && !(row.yes ?? Boolean(row.details || row.score)))} /></td>
                 <td style={tdCenter}>
                   {mode === "self"
                     ? section.key === "feedback"
-                      ? <RO value={feedbackRowScore(row, section.max).toFixed(1)} center />
-                      : <TI value={row.score} type="number" center readOnly={!editableSelf || section.selfReadOnlyScore || notApplicable} onChange={(value) => updateRow(index, "score", value)} />
-                    : <RO value={section.key === "feedback" ? feedbackRowScore(row, section.max).toFixed(1) : row.score} center />}
+                      ? <RO value={feedbackAverage(row) ? (feedbackAverage(row) / 10).toFixed(2) : ""} center />
+                      : <TI value={row.score} type="number" center readOnly={!editableSelf || section.selfReadOnlyScore || notApplicable || (section.key === "society" && !(row.yes ?? Boolean(row.details || row.score)))} onChange={(value) => updateRow(index, "score", value)} />
+                    : <RO value={section.key === "feedback" ? (feedbackAverage(row) ? (feedbackAverage(row) / 10).toFixed(2) : "") : row.score} center />}
                 </td>
                 {mode === "review" && previousRoles.map((role) => <td key={role} style={tdCenter}><RO value={row[role]} center /></td>)}
                 {mode === "review" && (
@@ -452,8 +496,23 @@ function SectionTable({ section, form, setForm, docs, setDocs, mode, locked, rev
               </tr>
             ))}
           </tbody>
+          {mode === "self" && (
+            <tfoot>
+              <tr>
+                <td
+                  colSpan={1 + section.fields.length + (section.key === "feedback" ? 1 : 0) + (section.key === "society" ? 1 : 0) + 1}
+                  style={{ textAlign: "center", fontWeight: 800, fontSize: 11, padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}
+                >
+                  {section.useAverage ? "Average" : "Total"} Score (Max {notApplicable ? 0 : section.max})
+                </td>
+                <td style={{ textAlign: "center", fontWeight: 900, fontSize: 12, color: "#0f172a", padding: "8px 7px", background: "#f1f5f9", borderTop: "2px solid #cbd5e1", border: "1px solid #cbd5e1" }}>
+                  {earned.toFixed(1)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
-      </div>
+      </div>}
       {editableSelf && !section.selfReadOnlyScore && !notApplicable && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button type="button" onClick={addRow} style={smallButton("#10b981")}>+ Add Row</button>
@@ -471,7 +530,7 @@ function InnovativeSection({ form, setForm, docs, setDocs, mode, locked, reviewe
   const updateReview = (value) => setReviewData((prev) => ({ ...prev, innovativeTeaching: { ...(prev.innovativeTeaching || {}), [reviewerRole]: value } }));
 
   return (
-    <SectionShell title="A(iii). Innovative Teaching Methods" max={10}>
+    <SectionShell title="(iii). Innovative Teaching Methods" max={10}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
         <thead>
           <tr>
@@ -746,6 +805,7 @@ export default function DesignArtsDashboard({ fixedRole }) {
   const [sectionSaveStatus, setSectionSaveStatus] = useState({ partA: false, partB: false });
   const [savingSection, setSavingSection] = useState("");
   const [declaration, setDeclaration] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [reviews, setReviews] = useState([]);
   const userEmail = sessionStorage.getItem("username") || "";
   const academicYear = form.info?.ay || "2025-2026";
@@ -1028,7 +1088,7 @@ export default function DesignArtsDashboard({ fixedRole }) {
             </div>
           </button>
           <button
-            onClick={() => navigate("/login", { replace: true })}
+            onClick={() => setShowLogoutModal(true)}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, background: "none", border: "1px solid #374151", borderRadius: 8, padding: "9px 11px", cursor: "pointer", fontFamily: "Georgia, serif" }}
             onMouseEnter={(event) => { event.currentTarget.style.background = "#1e293b"; }}
             onMouseLeave={(event) => { event.currentTarget.style.background = "none"; }}
@@ -1045,7 +1105,6 @@ export default function DesignArtsDashboard({ fixedRole }) {
 
         {activeTab === "my" && canSelfSubmit && (
           <div style={{ display: "grid", gap: 16 }}>
-            <WorkflowTracker declaration={declaration} reviews={reviews} profile={{ ...profile, appraisal_role: role }} />
             {(selfSectionView === "partA" || selfSectionView === "partB") && (
               <>
                 <DesignArtsForm
@@ -1122,6 +1181,21 @@ export default function DesignArtsDashboard({ fixedRole }) {
           />
         )}
       </main>
+      {showLogoutModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowLogoutModal(false)}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "32px 36px", maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, fontFamily: "Georgia, serif" }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🚪</div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#0f172a", marginBottom: 6 }}>Confirm Logout</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>You are about to log out of <strong>{APP_INFO.PORTAL_NAME}</strong>.<br />Any unsaved changes will be lost.</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, width: "100%" }}>
+              <button onClick={() => setShowLogoutModal(false)} style={{ flex: 1, padding: "10px 0", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>Cancel</button>
+              <button onClick={() => { setShowLogoutModal(false); sessionStorage.clear(); navigate("/login", { replace: true }); }} style={{ flex: 1, padding: "10px 0", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>Yes, Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
